@@ -20,7 +20,6 @@ namespace ASTRASystem.Models
         [MaxLength(50)]
         public string UnitOfMeasure { get; set; }
 
-        // Optional: product metadata (like weight, expiry flag)
         public bool IsPerishable { get; set; } = false;
     }
 }

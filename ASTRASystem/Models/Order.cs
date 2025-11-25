@@ -38,7 +38,6 @@ namespace ASTRASystem.Models
 
         public DateTime? ScheduledFor { get; set; }
 
-        // Totals (cached for reporting)
         [Column(TypeName = "decimal(18,2)")]
         public decimal SubTotal { get; set; }
 

@@ -13,7 +13,6 @@ namespace ASTRASystem.Models
         [MaxLength(500)]
         public string Address { get; set; }
 
-        // Navigation
         public ICollection<Warehouse> Warehouses { get; set; } = new List<Warehouse>();
     }
 }

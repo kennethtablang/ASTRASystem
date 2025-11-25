@@ -6,12 +6,9 @@ namespace ASTRASystem.Models
     {
         [MaxLength(450)]
         public string UserId { get; set; }
-
         [Required, MaxLength(250)]
         public string Action { get; set; }
-
-        public string Meta { get; set; } // JSON blob or structured text
-
+        public string Meta { get; set; }
         public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
     }
 }

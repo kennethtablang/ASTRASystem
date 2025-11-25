@@ -29,25 +29,70 @@ namespace ASTRASystem.Data
         {
             base.OnModelCreating(builder);
 
-            // ---- Default string lengths for Identity keys (if needed) ----
-            // Identity uses nvarchar(450) by default for string keys; above models use that expectation.
+            // ---- Decimal precision for monetary values ----
+            builder.Entity<Product>()
+                .Property(p => p.Price)
+                .HasColumnType("decimal(18,2)");
 
-            // ---- Decimal precision (explicit to avoid provider differences) ----
-            builder.Entity<Product>().Property(p => p.Price).HasColumnType("decimal(18,2)");
-            builder.Entity<Order>().Property(o => o.SubTotal).HasColumnType("decimal(18,2)");
-            builder.Entity<Order>().Property(o => o.Tax).HasColumnType("decimal(18,2)");
-            builder.Entity<Order>().Property(o => o.Total).HasColumnType("decimal(18,2)");
-            builder.Entity<OrderItem>().Property(i => i.UnitPrice).HasColumnType("decimal(18,2)");
-            builder.Entity<Payment>().Property(p => p.Amount).HasColumnType("decimal(18,2)");
-            builder.Entity<Invoice>().Property(i => i.TotalAmount).HasColumnType("decimal(18,2)");
-            builder.Entity<Invoice>().Property(i => i.TaxAmount).HasColumnType("decimal(18,2)");
+            builder.Entity<Order>()
+                .Property(o => o.SubTotal)
+                .HasColumnType("decimal(18,2)");
 
-            // ---- Relationships & delete behavior (restrict deletes to avoid accidental cascade) ----
+            builder.Entity<Order>()
+                .Property(o => o.Tax)
+                .HasColumnType("decimal(18,2)");
+
+            builder.Entity<Order>()
+                .Property(o => o.Total)
+                .HasColumnType("decimal(18,2)");
+
+            builder.Entity<OrderItem>()
+                .Property(i => i.UnitPrice)
+                .HasColumnType("decimal(18,2)");
+
+            builder.Entity<Payment>()
+                .Property(p => p.Amount)
+                .HasColumnType("decimal(18,2)");
+
+            builder.Entity<Invoice>()
+                .Property(i => i.TotalAmount)
+                .HasColumnType("decimal(18,2)");
+
+            builder.Entity<Invoice>()
+                .Property(i => i.TaxAmount)
+                .HasColumnType("decimal(18,2)");
+
+            builder.Entity<Store>()
+                .Property(s => s.CreditLimit)
+                .HasColumnType("decimal(18,2)");
+
+            // ---- Decimal precision for geographic coordinates (Lat/Lng) ----
+            // Format: decimal(precision, scale)
+            // For coordinates: decimal(10,7) gives 7 decimal places (~1.1cm accuracy)
+            // Range: -999.9999999 to 999.9999999 (more than enough for lat/lng)
+
+            builder.Entity<Warehouse>()
+                .Property(w => w.Latitude)
+                .HasColumnType("decimal(10,7)");
+
+            builder.Entity<Warehouse>()
+                .Property(w => w.Longitude)
+                .HasColumnType("decimal(10,7)");
+
+            builder.Entity<DeliveryPhoto>()
+                .Property(d => d.Lat)
+                .HasColumnType("decimal(10,7)");
+
+            builder.Entity<DeliveryPhoto>()
+                .Property(d => d.Lng)
+                .HasColumnType("decimal(10,7)");
+
+            // ---- Relationships & delete behavior ----
             builder.Entity<Order>()
                 .HasMany(o => o.Items)
                 .WithOne(i => i.Order)
                 .HasForeignKey(i => i.OrderId)
-                .OnDelete(DeleteBehavior.Cascade); // keep cascade for items when order deleted
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<Order>()
                 .HasMany(o => o.DeliveryPhotos)
@@ -73,22 +118,34 @@ namespace ASTRASystem.Data
                 .HasForeignKey(i => i.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Indexes for performance
-            builder.Entity<Order>().HasIndex(o => new { o.Status });
-            builder.Entity<Order>().HasIndex(o => new { o.WarehouseId });
-            builder.Entity<Trip>().HasIndex(t => new { t.DispatcherId });
-            builder.Entity<Store>().HasIndex(s => new { s.Barangay, s.City });
+            // ---- Indexes for query performance ----
+            builder.Entity<Order>()
+                .HasIndex(o => o.Status);
 
-            // Limit string lengths explicitly where used in models (defensive)
-            builder.Entity<ApplicationUser>().Property(u => u.FirstName).HasMaxLength(150);
-            builder.Entity<ApplicationUser>().Property(u => u.LastName).HasMaxLength(150);
+            builder.Entity<Order>()
+                .HasIndex(o => o.WarehouseId);
 
-            // Additional model customizations can go here (composite keys, alternate keys, etc.)
+            builder.Entity<Trip>()
+                .HasIndex(t => t.DispatcherId);
+
+            builder.Entity<Store>()
+                .HasIndex(s => new { s.Barangay, s.City });
+
+            // ---- String length constraints ----
+            builder.Entity<ApplicationUser>()
+                .Property(u => u.FirstName)
+                .HasMaxLength(150);
+
+            builder.Entity<ApplicationUser>()
+                .Property(u => u.LastName)
+                .HasMaxLength(150);
         }
+
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             var entries = ChangeTracker.Entries()
-                .Where(e => e.Entity is BaseEntity && (e.State == EntityState.Added || e.State == EntityState.Modified));
+                .Where(e => e.Entity is BaseEntity &&
+                           (e.State == EntityState.Added || e.State == EntityState.Modified));
 
             foreach (var entry in entries)
             {
@@ -103,5 +160,4 @@ namespace ASTRASystem.Data
             return await base.SaveChangesAsync(cancellationToken);
         }
     }
-
 }

@@ -18,6 +18,6 @@ namespace ASTRASystem.Models
         public DateTime IssuedAt { get; set; } = DateTime.UtcNow;
 
         [MaxLength(1000)]
-        public string InvoiceUrl { get; set; } // PDF location if stored
+        public string InvoiceUrl { get; set; }
     }
 }

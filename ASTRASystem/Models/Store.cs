@@ -27,7 +27,6 @@ namespace ASTRASystem.Models
         [MaxLength(100)]
         public string PreferredPaymentMethod { get; set; }
 
-        // Navigation
         public ICollection<Order> Orders { get; set; } = new List<Order>();
     }
 }

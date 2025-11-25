@@ -10,10 +10,6 @@ namespace ASTRASystem.Models
         [ForeignKey(nameof(WarehouseId))]
         public Warehouse Warehouse { get; set; }
 
-        /// <summary>
-        /// Dispatcher (rider) assigned to this trip.
-        /// Stored as user id string to work with Identity's ApplicationUser.Id type.
-        /// </summary>
         [MaxLength(450)]
         public string DispatcherId { get; set; }
 
@@ -24,10 +20,8 @@ namespace ASTRASystem.Models
         [MaxLength(200)]
         public string Vehicle { get; set; }
 
-        // Optional estimated return/time window
         public DateTime? EstimatedReturn { get; set; }
 
-        // Navigation
         public ICollection<TripAssignment> Assignments { get; set; } = new List<TripAssignment>();
     }
 }

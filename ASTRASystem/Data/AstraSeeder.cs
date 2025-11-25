@@ -25,7 +25,6 @@ namespace ASTRASystem.Data
             var userManager = scopedServices.GetRequiredService<UserManager<ApplicationUser>>();
             var db = scopedServices.GetRequiredService<ApplicationDbContext>();
 
-            // 1) Ensure DB is created and migrations applied (optional - use in dev only)
             try
             {
                 await db.Database.MigrateAsync();
@@ -35,7 +34,6 @@ namespace ASTRASystem.Data
                 logger?.LogWarning(ex, "Database migrate failed during seeding (may be fine in some environments).");
             }
 
-            // 2) Create roles
             foreach (var roleName in DefaultRoles)
             {
                 if (!await roleManager.RoleExistsAsync(roleName))
@@ -46,13 +44,11 @@ namespace ASTRASystem.Data
                 }
             }
 
-            // Helper to create users
             async Task<ApplicationUser> EnsureUser(string userName, string email, string firstName, string lastName, string role, long? distributorId = null, long? warehouseId = null)
             {
                 var user = await userManager.FindByEmailAsync(email);
                 if (user != null)
                 {
-                    // Ensure in role
                     if (!await userManager.IsInRoleAsync(user, role))
                     {
                         await userManager.AddToRoleAsync(user, role);
@@ -72,8 +68,7 @@ namespace ASTRASystem.Data
                     PhoneNumberConfirmed = true
                 };
 
-                // NOTE: change the password before using in production
-                var result = await userManager.CreateAsync(user, "P@ssw0rd!");
+                var result = await userManager.CreateAsync(user, "Admin#123");
                 if (!result.Succeeded)
                 {
                     var errs = string.Join(", ", result.Errors.Select(e => e.Description));
@@ -119,7 +114,6 @@ namespace ASTRASystem.Data
                 logger?.LogInformation("Seeded Warehouse: {name}", warehouse.Name);
             }
 
-            // 4) Seed sample product(s) if none exist
             if (!await db.Products.AnyAsync())
             {
                 var seedProducts = new List<Product>
@@ -133,7 +127,6 @@ namespace ASTRASystem.Data
                 logger?.LogInformation("Seeded {count} products", seedProducts.Count);
             }
 
-            // 5) Seed sample store (retailer)
             if (!await db.Stores.AnyAsync())
             {
                 var s = new Store
@@ -151,7 +144,6 @@ namespace ASTRASystem.Data
                 logger?.LogInformation("Seeded sample Store {name}", s.Name);
             }
 
-            // 6) Create users: Admin, DistributorAdmin, Agent, Dispatcher, Accountant
             // Admin (super user)
             var adminUser = await userManager.FindByEmailAsync("admin@astra.local");
             if (adminUser == null)
