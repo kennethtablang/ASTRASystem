@@ -150,11 +150,23 @@ namespace ASTRASystem.Data
             foreach (var entry in entries)
             {
                 var entity = (BaseEntity)entry.Entity;
+
                 if (entry.State == EntityState.Added)
                 {
                     entity.CreatedAt = DateTime.UtcNow;
+
+                    if (string.IsNullOrEmpty(entity.CreatedById))
+                    {
+                        entity.CreatedById = "system";
+                    }
                 }
+
                 entity.UpdatedAt = DateTime.UtcNow;
+
+                if (string.IsNullOrEmpty(entity.UpdatedById))
+                {
+                    entity.UpdatedById = "system";
+                }
             }
 
             return await base.SaveChangesAsync(cancellationToken);

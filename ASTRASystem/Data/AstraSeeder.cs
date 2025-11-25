@@ -34,6 +34,7 @@ namespace ASTRASystem.Data
                 logger?.LogWarning(ex, "Database migrate failed during seeding (may be fine in some environments).");
             }
 
+            // 1) Create roles
             foreach (var roleName in DefaultRoles)
             {
                 if (!await roleManager.RoleExistsAsync(roleName))
@@ -44,6 +45,7 @@ namespace ASTRASystem.Data
                 }
             }
 
+            // 2) Helper function to ensure user exists
             async Task<ApplicationUser> EnsureUser(string userName, string email, string firstName, string lastName, string role, long? distributorId = null, long? warehouseId = null)
             {
                 var user = await userManager.FindByEmailAsync(email);
@@ -65,7 +67,8 @@ namespace ASTRASystem.Data
                     DistributorId = distributorId,
                     WarehouseId = warehouseId,
                     EmailConfirmed = true,
-                    PhoneNumberConfirmed = true
+                    PhoneNumberConfirmed = true,
+                    IsApproved = true 
                 };
 
                 var result = await userManager.CreateAsync(user, "Admin#123");
@@ -81,7 +84,14 @@ namespace ASTRASystem.Data
                 return user;
             }
 
-            // 3) Seed a default Distributor & Warehouse if none exist
+            // 3) Create Admin user FIRST (needed for CreatedById)
+            var adminUser = await userManager.FindByEmailAsync("admin@astra.local");
+            if (adminUser == null)
+            {
+                adminUser = await EnsureUser("admin", "admin@astra.local", "System", "Admin", "Admin");
+            }
+
+            // 4) Seed a default Distributor & Warehouse
             var distributor = await db.Distributors.FirstOrDefaultAsync();
             if (distributor == null)
             {
@@ -90,7 +100,10 @@ namespace ASTRASystem.Data
                     Name = "Demo Distributor",
                     ContactPhone = "09171234567",
                     Address = "Main Warehouse, Demo City",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id,
+                    UpdatedById = adminUser.Id
                 };
                 db.Distributors.Add(distributor);
                 await db.SaveChangesAsync();
@@ -107,26 +120,64 @@ namespace ASTRASystem.Data
                     Address = "Barangay Central, Demo City",
                     Latitude = 14.5995m,
                     Longitude = 120.9842m,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id,
+                    UpdatedById = adminUser.Id
                 };
                 db.Warehouses.Add(warehouse);
                 await db.SaveChangesAsync();
                 logger?.LogInformation("Seeded Warehouse: {name}", warehouse.Name);
             }
 
+            // 5) Seed Products
             if (!await db.Products.AnyAsync())
             {
                 var seedProducts = new List<Product>
                 {
-                    new Product { Sku = "RICE-5KG", Name = "Rice 5kg", Category = "Staples", Price = 250m, UnitOfMeasure = "bag" },
-                    new Product { Sku = "NOODLES-5", Name = "Instant Noodles - 5pcs", Category = "Groceries", Price = 75m, UnitOfMeasure = "pack" },
-                    new Product { Sku = "COOKINGOIL-1L", Name = "Cooking Oil 1L", Category = "Staples", Price = 120m, UnitOfMeasure = "bottle" }
+                    new Product
+                    {
+                        Sku = "RICE-5KG",
+                        Name = "Rice 5kg",
+                        Category = "Staples",
+                        Price = 250m,
+                        UnitOfMeasure = "bag",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Product
+                    {
+                        Sku = "NOODLES-5",
+                        Name = "Instant Noodles - 5pcs",
+                        Category = "Groceries",
+                        Price = 75m,
+                        UnitOfMeasure = "pack",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Product
+                    {
+                        Sku = "COOKINGOIL-1L",
+                        Name = "Cooking Oil 1L",
+                        Category = "Staples",
+                        Price = 120m,
+                        UnitOfMeasure = "bottle",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    }
                 };
                 db.Products.AddRange(seedProducts);
                 await db.SaveChangesAsync();
                 logger?.LogInformation("Seeded {count} products", seedProducts.Count);
             }
 
+            // 6) Seed Stores
             if (!await db.Stores.AnyAsync())
             {
                 var s = new Store
@@ -137,19 +188,18 @@ namespace ASTRASystem.Data
                     OwnerName = "Tito Manny",
                     Phone = "09171230000",
                     CreditLimit = 2000m,
-                    CreatedAt = DateTime.UtcNow
+                    PreferredPaymentMethod = "Cash",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id,
+                    UpdatedById = adminUser.Id
                 };
                 db.Stores.Add(s);
                 await db.SaveChangesAsync();
                 logger?.LogInformation("Seeded sample Store {name}", s.Name);
             }
 
-            // Admin (super user)
-            var adminUser = await userManager.FindByEmailAsync("admin@astra.local");
-            if (adminUser == null)
-            {
-                adminUser = await EnsureUser("admin", "admin@astra.local", "System", "Admin", "Admin");
-            }
+            // 7) Create other users (after distributor & warehouse exist)
 
             // Distributor admin (tied to distributor)
             var distAdmin = await userManager.FindByEmailAsync("distadmin@demo.local");
@@ -179,7 +229,7 @@ namespace ASTRASystem.Data
                 accountant = await EnsureUser("accountant1", "accountant1@demo.local", "Account", "One", "Accountant");
             }
 
-            // 7) Optional: create a sample order to illustrate relationships (only if none exist)
+            // 8) Optional: create a sample order to illustrate relationships (only if none exist)
             if (!await db.Orders.AnyAsync())
             {
                 var product = await db.Products.FirstAsync();
@@ -197,7 +247,10 @@ namespace ASTRASystem.Data
                     SubTotal = product.Price,
                     Tax = 0m,
                     Total = product.Price,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = agent.Id,
+                    UpdatedById = agent.Id
                 };
 
                 var line = new OrderItem
@@ -205,7 +258,10 @@ namespace ASTRASystem.Data
                     ProductId = product.Id,
                     Quantity = 1,
                     UnitPrice = product.Price,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = agent.Id,
+                    UpdatedById = agent.Id
                 };
 
                 order.Items.Add(line);
@@ -214,7 +270,7 @@ namespace ASTRASystem.Data
                 logger?.LogInformation("Seeded sample Order {orderId} for store {store}", order.Id, store.Name);
             }
 
-            logger?.LogInformation("AstraSeeder completed.");
+            logger?.LogInformation("AstraSeeder completed successfully.");
         }
     }
 }

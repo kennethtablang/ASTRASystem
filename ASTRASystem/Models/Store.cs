@@ -25,7 +25,7 @@ namespace ASTRASystem.Models
         public decimal CreditLimit { get; set; } = 0m;
 
         [MaxLength(100)]
-        public string PreferredPaymentMethod { get; set; }
+        public string? PreferredPaymentMethod { get; set; }
 
         public ICollection<Order> Orders { get; set; } = new List<Order>();
     }
