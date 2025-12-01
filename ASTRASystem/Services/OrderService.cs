@@ -1,4 +1,5 @@
-﻿using ASTRASystem.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using ASTRASystem.Data;
 using ASTRASystem.DTO.Common;
 using ASTRASystem.DTO.Order;
 using ASTRASystem.Enum;

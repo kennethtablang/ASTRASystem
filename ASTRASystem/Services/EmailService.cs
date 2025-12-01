@@ -2,6 +2,7 @@
 using ASTRASystem.Models;
 using MailKit.Security;
 using MimeKit;
+using MailKit.Net.Smtp;
 
 namespace ASTRASystem.Services
 {
