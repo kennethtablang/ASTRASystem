@@ -16,6 +16,7 @@ namespace ASTRASystem.Services
         private readonly IMapper _mapper;
         private readonly IAuditLogService _auditLogService;
         private readonly INotificationService _notificationService;
+        private readonly IPdfService _pdfService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<TripService> _logger;
 
@@ -24,6 +25,7 @@ namespace ASTRASystem.Services
             IMapper mapper,
             IAuditLogService auditLogService,
             INotificationService notificationService,
+            IPdfService pdfService,
             UserManager<ApplicationUser> userManager,
             ILogger<TripService> logger)
         {
@@ -31,6 +33,7 @@ namespace ASTRASystem.Services
             _mapper = mapper;
             _auditLogService = auditLogService;
             _notificationService = notificationService;
+            _pdfService = pdfService;
             _userManager = userManager;
             _logger = logger;
         }
@@ -77,9 +80,9 @@ namespace ASTRASystem.Services
                 var tripsQuery = _context.Trips
                     .Include(t => t.Warehouse)
                     .Include(t => t.Assignments)
-                        .ThenInclude(a => a.Order)
                     .AsNoTracking();
 
+                // Apply filters
                 if (query.Status.HasValue)
                 {
                     tripsQuery = tripsQuery.Where(t => t.Status == query.Status.Value);
@@ -105,11 +108,12 @@ namespace ASTRASystem.Services
                     tripsQuery = tripsQuery.Where(t => t.DepartureAt <= query.DepartureTo.Value);
                 }
 
+                // Apply sorting
                 tripsQuery = query.SortBy.ToLower() switch
                 {
-                    "departureat" => query.SortDescending
-                        ? tripsQuery.OrderByDescending(t => t.DepartureAt)
-                        : tripsQuery.OrderBy(t => t.DepartureAt),
+                    "createdat" => query.SortDescending
+                        ? tripsQuery.OrderByDescending(t => t.CreatedAt)
+                        : tripsQuery.OrderBy(t => t.CreatedAt),
                     "status" => query.SortDescending
                         ? tripsQuery.OrderByDescending(t => t.Status)
                         : tripsQuery.OrderBy(t => t.Status),
@@ -135,7 +139,13 @@ namespace ASTRASystem.Services
                         dto.DispatcherName = dispatcher?.FullName;
                     }
 
-                    dto.TotalValue = trip.Assignments.Sum(a => a.Order.Total);
+                    // Calculate total value from assignments
+                    var orderIds = trip.Assignments.Select(a => a.OrderId).ToList();
+                    var orders = await _context.Orders
+                        .Where(o => orderIds.Contains(o.Id))
+                        .ToListAsync();
+                    dto.TotalValue = orders.Sum(o => o.Total);
+
                     tripDtos.Add(dto);
                 }
 
@@ -155,31 +165,39 @@ namespace ASTRASystem.Services
         {
             try
             {
-                var warehouse = await _context.Warehouses.FindAsync(request.WarehouseId);
-                if (warehouse == null)
+                // Validate warehouse
+                var warehouseExists = await _context.Warehouses.AnyAsync(w => w.Id == request.WarehouseId);
+                if (!warehouseExists)
                 {
                     return ApiResponse<TripDto>.ErrorResponse("Warehouse not found");
                 }
 
+                // Validate dispatcher
                 var dispatcher = await _userManager.FindByIdAsync(request.DispatcherId);
                 if (dispatcher == null)
                 {
                     return ApiResponse<TripDto>.ErrorResponse("Dispatcher not found");
                 }
 
+                // Validate orders exist and are packed
                 var orders = await _context.Orders
-                    .Include(o => o.Store)
-                    .Where(o => request.OrderIds.Contains(o.Id) &&
-                                o.Status == OrderStatus.Packed &&
-                                o.WarehouseId == request.WarehouseId)
+                    .Where(o => request.OrderIds.Contains(o.Id))
                     .ToListAsync();
 
                 if (orders.Count != request.OrderIds.Count)
                 {
-                    return ApiResponse<TripDto>.ErrorResponse(
-                        "Some orders were not found or are not ready for dispatch");
+                    return ApiResponse<TripDto>.ErrorResponse("One or more orders not found");
                 }
 
+                var notPackedOrders = orders.Where(o => o.Status != OrderStatus.Packed).ToList();
+                if (notPackedOrders.Any())
+                {
+                    return ApiResponse<TripDto>.ErrorResponse(
+                        "All orders must be in 'Packed' status",
+                        notPackedOrders.Select(o => $"Order #{o.Id} is {o.Status}").ToList());
+                }
+
+                // Create trip
                 var trip = new Trip
                 {
                     WarehouseId = request.WarehouseId,
@@ -197,6 +215,7 @@ namespace ASTRASystem.Services
                 _context.Trips.Add(trip);
                 await _context.SaveChangesAsync();
 
+                // Create trip assignments
                 int sequenceNo = 1;
                 foreach (var orderId in request.OrderIds)
                 {
@@ -211,8 +230,10 @@ namespace ASTRASystem.Services
                         CreatedById = userId,
                         UpdatedById = userId
                     };
+
                     _context.TripAssignments.Add(assignment);
 
+                    // Update order status
                     var order = orders.First(o => o.Id == orderId);
                     order.Status = OrderStatus.Dispatched;
                     order.UpdatedAt = DateTime.UtcNow;
@@ -226,17 +247,18 @@ namespace ASTRASystem.Services
                     "Trip created",
                     new { TripId = trip.Id, OrderCount = request.OrderIds.Count });
 
+                // Notify dispatcher
                 await _notificationService.SendNotificationAsync(
                     request.DispatcherId,
                     "TripAssigned",
-                    $"You have been assigned to trip #{trip.Id} with {request.OrderIds.Count} orders");
+                    $"Trip #{trip.Id} has been assigned to you with {request.OrderIds.Count} order(s)");
 
                 return await GetTripByIdAsync(trip.Id);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating trip");
-                return ApiResponse<TripDto>.ErrorResponse("An error occurred");
+                return ApiResponse<TripDto>.ErrorResponse("An error occurred while creating trip");
             }
         }
 
@@ -252,7 +274,8 @@ namespace ASTRASystem.Services
 
                 if (trip.Status == TripStatus.Completed || trip.Status == TripStatus.Cancelled)
                 {
-                    return ApiResponse<TripDto>.ErrorResponse("Cannot update completed or cancelled trips");
+                    return ApiResponse<TripDto>.ErrorResponse(
+                        "Cannot update completed or cancelled trips");
                 }
 
                 if (!string.IsNullOrEmpty(request.DispatcherId))
@@ -265,15 +288,30 @@ namespace ASTRASystem.Services
                     trip.DispatcherId = request.DispatcherId;
                 }
 
-                trip.DepartureAt = request.DepartureAt ?? trip.DepartureAt;
-                trip.Vehicle = request.Vehicle ?? trip.Vehicle;
-                trip.EstimatedReturn = request.EstimatedReturn ?? trip.EstimatedReturn;
+                if (request.DepartureAt.HasValue)
+                {
+                    trip.DepartureAt = request.DepartureAt;
+                }
+
+                if (!string.IsNullOrEmpty(request.Vehicle))
+                {
+                    trip.Vehicle = request.Vehicle;
+                }
+
+                if (request.EstimatedReturn.HasValue)
+                {
+                    trip.EstimatedReturn = request.EstimatedReturn;
+                }
+
                 trip.UpdatedAt = DateTime.UtcNow;
                 trip.UpdatedById = userId;
 
                 await _context.SaveChangesAsync();
 
-                await _auditLogService.LogActionAsync(userId, "Trip updated", new { TripId = trip.Id });
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Trip updated",
+                    new { TripId = trip.Id });
 
                 return await GetTripByIdAsync(trip.Id);
             }
@@ -302,17 +340,19 @@ namespace ASTRASystem.Services
                 trip.UpdatedAt = DateTime.UtcNow;
                 trip.UpdatedById = userId;
 
-                if (request.NewStatus == TripStatus.Started)
+                // If starting trip, update order statuses
+                if (request.NewStatus == TripStatus.Started || request.NewStatus == TripStatus.InProgress)
                 {
-                    foreach (var assignment in trip.Assignments)
+                    var orderIds = trip.Assignments.Select(a => a.OrderId).ToList();
+                    var orders = await _context.Orders
+                        .Where(o => orderIds.Contains(o.Id))
+                        .ToListAsync();
+
+                    foreach (var order in orders)
                     {
-                        var order = await _context.Orders.FindAsync(assignment.OrderId);
-                        if (order != null)
-                        {
-                            order.Status = OrderStatus.InTransit;
-                            order.UpdatedAt = DateTime.UtcNow;
-                            order.UpdatedById = userId;
-                        }
+                        order.Status = OrderStatus.InTransit;
+                        order.UpdatedAt = DateTime.UtcNow;
+                        order.UpdatedById = userId;
                     }
                 }
 
@@ -328,6 +368,15 @@ namespace ASTRASystem.Services
                         NewStatus = request.NewStatus.ToString(),
                         Notes = request.Notes
                     });
+
+                // Notify dispatcher
+                if (!string.IsNullOrEmpty(trip.DispatcherId))
+                {
+                    await _notificationService.SendNotificationAsync(
+                        trip.DispatcherId,
+                        "TripStatusChanged",
+                        $"Trip #{trip.Id} status changed to {request.NewStatus}");
+                }
 
                 return await GetTripByIdAsync(trip.Id);
             }
@@ -354,28 +403,36 @@ namespace ASTRASystem.Services
                 if (trip.Status != TripStatus.Created && trip.Status != TripStatus.Assigned)
                 {
                     return ApiResponse<bool>.ErrorResponse(
-                        "Can only reorder assignments for trips that haven't started");
+                        "Can only reorder trips that haven't started");
                 }
 
+                // Validate all orders belong to this trip
+                var tripOrderIds = trip.Assignments.Select(a => a.OrderId).ToHashSet();
+                var requestOrderIds = request.Sequences.Select(s => s.OrderId).ToHashSet();
+
+                if (!tripOrderIds.SetEquals(requestOrderIds))
+                {
+                    return ApiResponse<bool>.ErrorResponse(
+                        "Sequence must include all trip orders");
+                }
+
+                // Update sequence numbers
                 foreach (var sequence in request.Sequences)
                 {
-                    var assignment = trip.Assignments.FirstOrDefault(a => a.OrderId == sequence.OrderId);
-                    if (assignment != null)
-                    {
-                        assignment.SequenceNo = sequence.SequenceNo;
-                        assignment.UpdatedAt = DateTime.UtcNow;
-                        assignment.UpdatedById = userId;
-                    }
+                    var assignment = trip.Assignments.First(a => a.OrderId == sequence.OrderId);
+                    assignment.SequenceNo = sequence.SequenceNo;
+                    assignment.UpdatedAt = DateTime.UtcNow;
+                    assignment.UpdatedById = userId;
                 }
 
                 await _context.SaveChangesAsync();
 
                 await _auditLogService.LogActionAsync(
                     userId,
-                    "Trip assignments reordered",
+                    "Trip sequence reordered",
                     new { TripId = trip.Id });
 
-                return ApiResponse<bool>.SuccessResponse(true, "Trip assignments reordered successfully");
+                return ApiResponse<bool>.SuccessResponse(true, "Trip sequence updated successfully");
             }
             catch (Exception ex)
             {
@@ -399,22 +456,25 @@ namespace ASTRASystem.Services
 
                 if (trip.Status == TripStatus.Completed || trip.Status == TripStatus.Cancelled)
                 {
-                    return ApiResponse<bool>.ErrorResponse("Cannot cancel completed or already cancelled trips");
+                    return ApiResponse<bool>.ErrorResponse(
+                        "Cannot cancel completed or already cancelled trips");
                 }
 
                 trip.Status = TripStatus.Cancelled;
                 trip.UpdatedAt = DateTime.UtcNow;
                 trip.UpdatedById = userId;
 
-                foreach (var assignment in trip.Assignments)
+                // Update order statuses back to Packed
+                var orderIds = trip.Assignments.Select(a => a.OrderId).ToList();
+                var orders = await _context.Orders
+                    .Where(o => orderIds.Contains(o.Id))
+                    .ToListAsync();
+
+                foreach (var order in orders)
                 {
-                    var order = await _context.Orders.FindAsync(assignment.OrderId);
-                    if (order != null && order.Status == OrderStatus.Dispatched)
-                    {
-                        order.Status = OrderStatus.Packed;
-                        order.UpdatedAt = DateTime.UtcNow;
-                        order.UpdatedById = userId;
-                    }
+                    order.Status = OrderStatus.Packed;
+                    order.UpdatedAt = DateTime.UtcNow;
+                    order.UpdatedById = userId;
                 }
 
                 await _context.SaveChangesAsync();
@@ -422,7 +482,16 @@ namespace ASTRASystem.Services
                 await _auditLogService.LogActionAsync(
                     userId,
                     "Trip cancelled",
-                    new { TripId = trip.Id, Reason = reason });
+                    new { TripId = tripId, Reason = reason });
+
+                // Notify dispatcher
+                if (!string.IsNullOrEmpty(trip.DispatcherId))
+                {
+                    await _notificationService.SendNotificationAsync(
+                        trip.DispatcherId,
+                        "TripCancelled",
+                        $"Trip #{trip.Id} has been cancelled");
+                }
 
                 return ApiResponse<bool>.SuccessResponse(true, "Trip cancelled successfully");
             }
@@ -454,44 +523,50 @@ namespace ASTRASystem.Services
                     return ApiResponse<TripManifestDto>.ErrorResponse("Trip not found");
                 }
 
-                var dispatcher = await _userManager.FindByIdAsync(trip.DispatcherId);
+                var dispatcher = !string.IsNullOrEmpty(trip.DispatcherId)
+                    ? await _userManager.FindByIdAsync(trip.DispatcherId)
+                    : null;
 
                 var manifest = new TripManifestDto
                 {
                     TripId = trip.Id,
                     WarehouseName = trip.Warehouse.Name,
                     WarehouseAddress = trip.Warehouse.Address,
-                    DispatcherName = dispatcher?.FullName ?? "Unknown",
+                    DispatcherName = dispatcher?.FullName ?? "Unassigned",
                     Vehicle = trip.Vehicle,
                     DepartureAt = trip.DepartureAt,
-                    TotalOrders = trip.Assignments.Count,
-                    TotalValue = trip.Assignments.Sum(a => a.Order.Total),
                     GeneratedAt = DateTime.UtcNow
                 };
 
-                var stops = trip.Assignments.OrderBy(a => a.SequenceNo).Select(assignment =>
+                foreach (var assignment in trip.Assignments.OrderBy(a => a.SequenceNo))
                 {
-                    var order = assignment.Order;
-                    return new ManifestStopDto
+                    var stop = new ManifestStopDto
                     {
                         SequenceNo = assignment.SequenceNo,
-                        OrderId = order.Id,
-                        StoreName = order.Store.Name,
-                        StoreAddress = $"{order.Store.Barangay}, {order.Store.City}",
-                        StorePhone = order.Store.Phone,
-                        StoreOwner = order.Store.OwnerName,
-                        OrderTotal = order.Total,
-                        Items = order.Items.Select(item => new ManifestItemDto
+                        OrderId = assignment.OrderId,
+                        StoreName = assignment.Order.Store.Name,
+                        StoreAddress = $"{assignment.Order.Store.Barangay}, {assignment.Order.Store.City}",
+                        StorePhone = assignment.Order.Store.Phone,
+                        StoreOwner = assignment.Order.Store.OwnerName,
+                        OrderTotal = assignment.Order.Total
+                    };
+
+                    foreach (var item in assignment.Order.Items)
+                    {
+                        stop.Items.Add(new ManifestItemDto
                         {
                             Sku = item.Product.Sku,
                             ProductName = item.Product.Name,
                             Quantity = item.Quantity,
                             UnitOfMeasure = item.Product.UnitOfMeasure
-                        }).ToList()
-                    };
-                }).ToList();
+                        });
+                    }
 
-                manifest.Stops = stops;
+                    manifest.Stops.Add(stop);
+                }
+
+                manifest.TotalOrders = manifest.Stops.Count;
+                manifest.TotalValue = manifest.Stops.Sum(s => s.OrderTotal);
 
                 return ApiResponse<TripManifestDto>.SuccessResponse(manifest);
             }
@@ -506,14 +581,24 @@ namespace ASTRASystem.Services
         {
             try
             {
-                var manifestResponse = await GetTripManifestAsync(tripId);
-                if (!manifestResponse.Success)
+                var trip = await _context.Trips
+                    .Include(t => t.Warehouse)
+                    .Include(t => t.Assignments)
+                        .ThenInclude(a => a.Order)
+                            .ThenInclude(o => o.Store)
+                    .Include(t => t.Assignments)
+                        .ThenInclude(a => a.Order)
+                            .ThenInclude(o => o.Items)
+                                .ThenInclude(i => i.Product)
+                    .FirstOrDefaultAsync(t => t.Id == tripId);
+
+                if (trip == null)
                 {
-                    return ApiResponse<byte[]>.ErrorResponse(manifestResponse.Message);
+                    return ApiResponse<byte[]>.ErrorResponse("Trip not found");
                 }
 
-                // This will be implemented in PdfService
-                return ApiResponse<byte[]>.ErrorResponse("PDF generation not yet implemented");
+                var pdfBytes = _pdfService.GenerateTripManifestPdf(trip);
+                return ApiResponse<byte[]>.SuccessResponse(pdfBytes);
             }
             catch (Exception ex)
             {
@@ -539,17 +624,21 @@ namespace ASTRASystem.Services
                     query = query.Where(t => t.DispatcherId == dispatcherId);
                 }
 
-                var trips = await query.ToListAsync();
+                var trips = await query
+                    .OrderBy(t => t.DepartureAt)
+                    .ToListAsync();
 
                 var tripDtos = new List<TripDto>();
                 foreach (var trip in trips)
                 {
                     var dto = _mapper.Map<TripDto>(trip);
+
                     if (!string.IsNullOrEmpty(trip.DispatcherId))
                     {
                         var dispatcher = await _userManager.FindByIdAsync(trip.DispatcherId);
                         dto.DispatcherName = dispatcher?.FullName;
                     }
+
                     tripDtos.Add(dto);
                 }
 
@@ -571,15 +660,21 @@ namespace ASTRASystem.Services
                     .Where(o => orderIds.Contains(o.Id))
                     .ToListAsync();
 
-                // Simple algorithm: group by city, then by barangay, then by priority
-                var orderedOrders = orders
+                if (orders.Count != orderIds.Count)
+                {
+                    return ApiResponse<List<long>>.ErrorResponse("Some orders not found");
+                }
+
+                // Simple optimization: group by city/barangay, then priority
+                var optimizedSequence = orders
                     .OrderBy(o => o.Store.City)
                     .ThenBy(o => o.Store.Barangay)
                     .ThenByDescending(o => o.Priority)
+                    .ThenBy(o => o.CreatedAt)
                     .Select(o => o.Id)
                     .ToList();
 
-                return ApiResponse<List<long>>.SuccessResponse(orderedOrders);
+                return ApiResponse<List<long>>.SuccessResponse(optimizedSequence);
             }
             catch (Exception ex)
             {
