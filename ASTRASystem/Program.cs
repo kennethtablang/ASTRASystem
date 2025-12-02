@@ -1,11 +1,13 @@
+//Agent Supply & Transport Routing Assistant (ASTRA)
 using ASTRASystem.Data;
 using ASTRASystem.Helpers;
+using ASTRASystem.Interfaces;
 using ASTRASystem.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using QuestPDF.Infrastructure;            // ? for LicenseType
+using QuestPDF.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -82,6 +84,27 @@ namespace ASTRASystem
 
 
             // 5. Application services
+            builder.Services.AddAutoMapper(typeof(Program));
+            builder.Services.AddScoped<ITokenService, Services.TokenService>();
+            builder.Services.AddScoped<IAuthService, Services.AuthService>();
+            builder.Services.AddScoped<IUserService, Services.UserService>();
+            builder.Services.AddScoped<IProductService, Services.ProductService>();
+            builder.Services.AddScoped<IStoreService, Services.StoreService>();
+            builder.Services.AddScoped<IOrderService, Services.OrderService>();
+            builder.Services.AddScoped<ITripService, Services.TripService>();
+            builder.Services.AddScoped<IDeliveryService, Services.DeliveryService>();
+            builder.Services.AddScoped<IPaymentService, Services.PaymentService>();
+            builder.Services.AddScoped<IInvoiceService, Services.InvoiceService>();
+            builder.Services.AddScoped<IWarehouseService, Services.WarehouseService>();
+            builder.Services.AddScoped<IDistributorService, Services.DistributorService>();
+            builder.Services.AddScoped<IAuditLogService, Services.AuditLogService>();
+            builder.Services.AddScoped<INotificationService, Services.NotificationService>();
+            builder.Services.AddScoped<IReportService, Services.ReportService>();
+            builder.Services.AddScoped<IEmailService, Services.EmailService>();
+            builder.Services.AddScoped<IFileStorageService, Services.FileStorageService>();
+            builder.Services.AddScoped<IPdfService, Services.PdfService>();
+            builder.Services.AddScoped<IExcelService, Services.ExcelService>();
+            builder.Services.AddScoped<IBarcodeService, Services.BarcodeService>();
 
             // 6. Controllers + JSON options
             builder.Services
