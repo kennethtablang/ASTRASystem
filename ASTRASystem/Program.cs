@@ -1,15 +1,13 @@
-//Agent Supply & Transport Routing Assistant (ASTRA)
 using ASTRASystem.Data;
 using ASTRASystem.Helpers;
 using ASTRASystem.Interfaces;
 using ASTRASystem.Models;
+using ASTRASystem.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -21,7 +19,7 @@ namespace ASTRASystem
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // ??? QuestPDF Community License ???
+            // QuestPDF Community License
             QuestPDF.Settings.License = LicenseType.Community;
 
             // 1. DbContext
@@ -31,21 +29,16 @@ namespace ASTRASystem
             // 2. Identity
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(opts =>
             {
-                // UPDATED: Strong password requirements
-                opts.Password.RequireDigit = true;              // Must contain at least one number
-                opts.Password.RequireLowercase = true;          // Must contain at least one lowercase letter
-                opts.Password.RequireUppercase = true;          // Must contain at least one uppercase letter
-                opts.Password.RequireNonAlphanumeric = true;    // Must contain at least one special character
-                opts.Password.RequiredLength = 8;               // Minimum 8 characters
-                opts.Password.RequiredUniqueChars = 1;          // At least 1 unique character
-
-                // Optional: Configure lockout settings
+                opts.Password.RequireDigit = true;
+                opts.Password.RequireLowercase = true;
+                opts.Password.RequireUppercase = true;
+                opts.Password.RequireNonAlphanumeric = true;
+                opts.Password.RequiredLength = 8;
+                opts.Password.RequiredUniqueChars = 1;
                 opts.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
                 opts.Lockout.MaxFailedAccessAttempts = 5;
                 opts.Lockout.AllowedForNewUsers = true;
-
-                // Email confirmation not required for login (handled separately)
-                opts.SignIn.RequireConfirmedEmail = false;
+                opts.SignIn.RequireConfirmedEmail = true;
             })
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
@@ -75,36 +68,39 @@ namespace ASTRASystem
                     ValidAudience = jwtSettings.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ClockSkew = TimeSpan.Zero,
-
-                    // These are critical:
                     RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
-                    NameClaimType = JwtRegisteredClaimNames.Sub // this maps User.Identity.Name to user.Id
+                    NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub
                 };
             });
 
+            // 5. Register Application Services
+            builder.Services.AddScoped<ITokenService, TokenService>();
+            builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IEmailService, EmailService>();
+            builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
 
-            // 5. Application services
+            // Domain Services
+            builder.Services.AddScoped<IDistributorService, DistributorService>();
+            builder.Services.AddScoped<IWarehouseService, WarehouseService>();
+            builder.Services.AddScoped<IStoreService, StoreService>();
+            builder.Services.AddScoped<IProductService, ProductService>();
+            builder.Services.AddScoped<IOrderService, OrderService>();
+            builder.Services.AddScoped<ITripService, TripService>();
+            builder.Services.AddScoped<IDeliveryService, DeliveryService>();
+            builder.Services.AddScoped<IPaymentService, PaymentService>();
+            builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+
+            // Utility Services
+            builder.Services.AddScoped<IPdfService, PdfService>();
+            builder.Services.AddScoped<IExcelService, ExcelService>();
+            builder.Services.AddScoped<IBarcodeService, BarcodeService>();
+            builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+            builder.Services.AddScoped<IReportService, ReportService>();
+
+            // AutoMapper
             builder.Services.AddAutoMapper(typeof(Program));
-            builder.Services.AddScoped<ITokenService, Services.TokenService>();
-            builder.Services.AddScoped<IAuthService, Services.AuthService>();
-            builder.Services.AddScoped<IUserService, Services.UserService>();
-            builder.Services.AddScoped<IProductService, Services.ProductService>();
-            builder.Services.AddScoped<IStoreService, Services.StoreService>();
-            builder.Services.AddScoped<IOrderService, Services.OrderService>();
-            builder.Services.AddScoped<ITripService, Services.TripService>();
-            builder.Services.AddScoped<IDeliveryService, Services.DeliveryService>();
-            builder.Services.AddScoped<IPaymentService, Services.PaymentService>();
-            builder.Services.AddScoped<IInvoiceService, Services.InvoiceService>();
-            builder.Services.AddScoped<IWarehouseService, Services.WarehouseService>();
-            builder.Services.AddScoped<IDistributorService, Services.DistributorService>();
-            builder.Services.AddScoped<IAuditLogService, Services.AuditLogService>();
-            builder.Services.AddScoped<INotificationService, Services.NotificationService>();
-            builder.Services.AddScoped<IReportService, Services.ReportService>();
-            builder.Services.AddScoped<IEmailService, Services.EmailService>();
-            builder.Services.AddScoped<IFileStorageService, Services.FileStorageService>();
-            builder.Services.AddScoped<IPdfService, Services.PdfService>();
-            builder.Services.AddScoped<IExcelService, Services.ExcelService>();
-            builder.Services.AddScoped<IBarcodeService, Services.BarcodeService>();
 
             // 6. Controllers + JSON options
             builder.Services
@@ -112,13 +108,14 @@ namespace ASTRASystem
                 .AddJsonOptions(opts =>
                 {
                     opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                    opts.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
                 });
 
             // 7. Swagger
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new() { Title = "Agent Supply and Transport Routing Assistant (ASTRA) API", Version = "v1" });
+                c.SwaggerDoc("v1", new() { Title = "ASTRA System API", Version = "v1" });
                 c.AddSecurityDefinition("Bearer", new()
                 {
                     Description = "JWT Authorization header: Bearer {token}",
@@ -163,11 +160,11 @@ namespace ASTRASystem
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
-                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Agent Supply and Transport Routing Assistant (ASTRA) System v1"));
+                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "ASTRA System v1"));
             }
 
             app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Agent Supply and Transport Routing Assistant (ASTRA) System v1"));
+            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "ASTRA System v1"));
 
             app.UseHttpsRedirection();
             app.UseCors("AllowFrontendDev");

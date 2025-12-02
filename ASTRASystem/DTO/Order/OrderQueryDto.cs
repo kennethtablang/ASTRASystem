@@ -2,7 +2,7 @@
 
 namespace ASTRASystem.DTO.Order
 {
-    public class OrderQueryDto
+    public class OrderQueryDto : PaginationDto
     {
         public string? SearchTerm { get; set; }
         public OrderStatus? Status { get; set; }
@@ -15,9 +15,7 @@ namespace ASTRASystem.DTO.Order
         public DateTime? ScheduledTo { get; set; }
         public DateTime? CreatedFrom { get; set; }
         public DateTime? CreatedTo { get; set; }
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
-        public string SortBy { get; set; } = "CreatedAt";
+        public string SortBy { get; set; } = "createdAt";
         public bool SortDescending { get; set; } = true;
     }
 }
