@@ -2,9 +2,13 @@
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
+    [Authorize]
+    [Route("api/[controller]")]
+    [ApiController]
     public class CategoryController : ControllerBase
     {
         private readonly ICategoryService _categoryService;
@@ -56,11 +60,16 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryDto request)
         {
-            var userId = User.Identity?.Name;
+            // Use ClaimTypes.NameIdentifier for the user ID
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("CreateCategory: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("CreateCategory: User {UserId} creating category {CategoryName}", userId, request.Name);
 
             var result = await _categoryService.CreateCategoryAsync(request, userId);
             if (!result.Success)
@@ -76,14 +85,19 @@ namespace ASTRASystem.Controllers
         {
             if (id != request.Id)
             {
-                return BadRequest("ID mismatch");
+                return BadRequest(new { success = false, message = "ID mismatch" });
             }
 
-            var userId = User.Identity?.Name;
+            // Use ClaimTypes.NameIdentifier for the user ID
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateCategory: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateCategory: User {UserId} updating category {CategoryId}", userId, id);
 
             var result = await _categoryService.UpdateCategoryAsync(request, userId);
             if (!result.Success)

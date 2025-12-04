@@ -2,6 +2,7 @@
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
@@ -70,11 +71,16 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> CreateProduct([FromBody] CreateProductDto request)
         {
-            var userId = User.Identity?.Name;
+            // Use ClaimTypes.NameIdentifier for the user ID
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("CreateProduct: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("CreateProduct: User {UserId} creating product {ProductSku}", userId, request.Sku);
 
             var result = await _productService.CreateProductAsync(request, userId);
             if (!result.Success)
@@ -90,14 +96,19 @@ namespace ASTRASystem.Controllers
         {
             if (id != request.Id)
             {
-                return BadRequest("ID mismatch");
+                return BadRequest(new { success = false, message = "ID mismatch" });
             }
 
-            var userId = User.Identity?.Name;
+            // Use ClaimTypes.NameIdentifier for the user ID
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateProduct: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateProduct: User {UserId} updating product {ProductId}", userId, id);
 
             var result = await _productService.UpdateProductAsync(request, userId);
             if (!result.Success)
@@ -123,10 +134,13 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> BulkUpdatePrices([FromBody] BulkPriceUpdateDto request)
         {
-            var userId = User.Identity?.Name;
+            // Use ClaimTypes.NameIdentifier for the user ID
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("BulkUpdatePrices: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
 
             var result = await _productService.BulkUpdatePricesAsync(request, userId);
