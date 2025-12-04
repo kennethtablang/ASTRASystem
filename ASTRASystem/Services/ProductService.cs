@@ -369,7 +369,7 @@ namespace ASTRASystem.Services
 
                 product.Sku = request.Sku;
                 product.Name = request.Name;
-                product.Category = request.CategoryId;
+                product.CategoryId = request.CategoryId;
                 product.Price = request.Price;
                 product.UnitOfMeasure = request.UnitOfMeasure;
                 product.IsPerishable = request.IsPerishable;

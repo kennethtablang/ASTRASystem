@@ -68,7 +68,7 @@ namespace ASTRASystem.Data
                     WarehouseId = warehouseId,
                     EmailConfirmed = true,
                     PhoneNumberConfirmed = true,
-                    IsApproved = true 
+                    IsApproved = true
                 };
 
                 var result = await userManager.CreateAsync(user, "Admin#123");
@@ -130,7 +130,39 @@ namespace ASTRASystem.Data
                 logger?.LogInformation("Seeded Warehouse: {name}", warehouse.Name);
             }
 
-            
+            // 5) Seed Categories
+            if (!await db.Categories.AnyAsync())
+            {
+                var categories = new[]
+                {
+        new Category
+        {
+            Name = "Beverages",
+            Description = "Drinks and beverages",
+            Color = "#3B82F6",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedById = adminUser.Id,
+            UpdatedById = adminUser.Id
+        },
+        new Category
+        {
+            Name = "Snacks",
+            Description = "Snacks and chips",
+            Color = "#F59E0B",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CreatedById = adminUser.Id,
+            UpdatedById = adminUser.Id
+        }
+    };
+
+                db.Categories.AddRange(categories);
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Seeded {count} categories", categories.Length);
+            }
 
             // 6) Seed Stores
             if (!await db.Stores.AnyAsync())

@@ -9,10 +9,12 @@ namespace ASTRASystem.Profiles
         public ProductProfile()
         {
             // Product -> ProductDto
-            CreateMap<Product, ProductDto>();
+            CreateMap<Product, ProductDto>()
+                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : null));
 
             // Product -> ProductListItemDto
-            CreateMap<Product, ProductListItemDto>();
+            CreateMap<Product, ProductListItemDto>()
+                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : null));
 
             // CreateProductDto -> Product
             CreateMap<CreateProductDto, Product>()
