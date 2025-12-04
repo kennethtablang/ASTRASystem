@@ -83,6 +83,7 @@ namespace ASTRASystem
 
             // Domain Services
             builder.Services.AddScoped<IDistributorService, DistributorService>();
+            builder.Services.AddScoped<ICategoryService, CategoryService>();
             builder.Services.AddScoped<IWarehouseService, WarehouseService>();
             builder.Services.AddScoped<IStoreService, StoreService>();
             builder.Services.AddScoped<IProductService, ProductService>();

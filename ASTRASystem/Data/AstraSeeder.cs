@@ -130,52 +130,7 @@ namespace ASTRASystem.Data
                 logger?.LogInformation("Seeded Warehouse: {name}", warehouse.Name);
             }
 
-            // 5) Seed Products
-            if (!await db.Products.AnyAsync())
-            {
-                var seedProducts = new List<Product>
-                {
-                    new Product
-                    {
-                        Sku = "RICE-5KG",
-                        Name = "Rice 5kg",
-                        Category = "Staples",
-                        Price = 250m,
-                        UnitOfMeasure = "bag",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        CreatedById = adminUser.Id,
-                        UpdatedById = adminUser.Id
-                    },
-                    new Product
-                    {
-                        Sku = "NOODLES-5",
-                        Name = "Instant Noodles - 5pcs",
-                        Category = "Groceries",
-                        Price = 75m,
-                        UnitOfMeasure = "pack",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        CreatedById = adminUser.Id,
-                        UpdatedById = adminUser.Id
-                    },
-                    new Product
-                    {
-                        Sku = "COOKINGOIL-1L",
-                        Name = "Cooking Oil 1L",
-                        Category = "Staples",
-                        Price = 120m,
-                        UnitOfMeasure = "bottle",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        CreatedById = adminUser.Id,
-                        UpdatedById = adminUser.Id
-                    }
-                };
-                db.Products.AddRange(seedProducts);
-                await db.SaveChangesAsync();
-                logger?.LogInformation("Seeded {count} products", seedProducts.Count);
-            }
+            
 
             // 6) Seed Stores
             if (!await db.Stores.AnyAsync())

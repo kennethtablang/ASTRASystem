@@ -11,8 +11,10 @@ namespace ASTRASystem.Models
         [Required, MaxLength(300)]
         public string Name { get; set; }
 
-        [MaxLength(100)]
-        public string Category { get; set; }
+        // Changed from string to foreign key relationship
+        public long? CategoryId { get; set; }
+        [ForeignKey(nameof(CategoryId))]
+        public Category? Category { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }

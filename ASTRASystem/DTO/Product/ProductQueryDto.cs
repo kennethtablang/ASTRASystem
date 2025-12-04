@@ -3,7 +3,7 @@
     public class ProductQueryDto
     {
         public string? SearchTerm { get; set; }
-        public string? Category { get; set; }
+        public long? CategoryId { get; set; }
         public bool? IsPerishable { get; set; }
         public decimal? MinPrice { get; set; }
         public decimal? MaxPrice { get; set; }

@@ -103,7 +103,9 @@ namespace ASTRASystem.Services
         {
             try
             {
-                var productsQuery = _context.Products.AsNoTracking();
+                var productsQuery = _context.Products
+                    .Include(p => p.Category)
+                    .AsNoTracking();
 
                 // Apply filters
                 if (!string.IsNullOrWhiteSpace(query.SearchTerm))
@@ -112,13 +114,13 @@ namespace ASTRASystem.Services
                     productsQuery = productsQuery.Where(p =>
                         p.Name.ToLower().Contains(searchLower) ||
                         p.Sku.ToLower().Contains(searchLower) ||
-                        (p.Category != null && p.Category.ToLower().Contains(searchLower)) ||
+                        (p.Category != null && p.Category.Name.ToLower().Contains(searchLower)) ||
                         (p.Barcode != null && p.Barcode.ToLower().Contains(searchLower)));
                 }
 
-                if (!string.IsNullOrWhiteSpace(query.Category))
+                if (query.CategoryId.HasValue)
                 {
-                    productsQuery = productsQuery.Where(p => p.Category == query.Category);
+                    productsQuery = productsQuery.Where(p => p.CategoryId == query.CategoryId.Value);
                 }
 
                 if (query.IsPerishable.HasValue)
@@ -149,8 +151,8 @@ namespace ASTRASystem.Services
                         ? productsQuery.OrderByDescending(p => p.Price)
                         : productsQuery.OrderBy(p => p.Price),
                     "category" => query.SortDescending
-                        ? productsQuery.OrderByDescending(p => p.Category)
-                        : productsQuery.OrderBy(p => p.Category),
+                        ? productsQuery.OrderByDescending(p => p.Category.Name)
+                        : productsQuery.OrderBy(p => p.Category.Name),
                     _ => productsQuery.OrderBy(p => p.Name)
                 };
 
@@ -160,7 +162,22 @@ namespace ASTRASystem.Services
                     .Take(query.PageSize)
                     .ToListAsync();
 
-                var productDtos = _mapper.Map<List<ProductDto>>(products);
+                var productDtos = products.Select(p => new ProductDto
+                {
+                    Id = p.Id,
+                    Sku = p.Sku,
+                    Name = p.Name,
+                    CategoryId = p.CategoryId,
+                    CategoryName = p.Category?.Name,
+                    Price = p.Price,
+                    UnitOfMeasure = p.UnitOfMeasure,
+                    IsPerishable = p.IsPerishable,
+                    IsBarcoded = p.IsBarcoded,
+                    Barcode = p.Barcode,
+                    CreatedAt = p.CreatedAt,
+                    UpdatedAt = p.UpdatedAt
+                }).ToList();
+
                 var paginatedResponse = new PaginatedResponse<ProductDto>(
                     productDtos, totalCount, query.PageNumber, query.PageSize);
 
@@ -172,6 +189,7 @@ namespace ASTRASystem.Services
                 return ApiResponse<PaginatedResponse<ProductDto>>.ErrorResponse("An error occurred while retrieving products");
             }
         }
+
 
         public async Task<ApiResponse<List<ProductListItemDto>>> GetProductsForLookupAsync(string? searchTerm = null)
         {
@@ -217,6 +235,18 @@ namespace ASTRASystem.Services
                         "A product with this SKU already exists");
                 }
 
+                // Validate category if provided
+                if (request.CategoryId.HasValue)
+                {
+                    var categoryExists = await _context.Categories
+                        .AnyAsync(c => c.Id == request.CategoryId.Value && c.IsActive);
+
+                    if (!categoryExists)
+                    {
+                        return ApiResponse<ProductDto>.ErrorResponse("Invalid category selected");
+                    }
+                }
+
                 // Validate barcode if product is barcoded
                 if (request.IsBarcoded)
                 {
@@ -226,7 +256,6 @@ namespace ASTRASystem.Services
                             "Barcode is required for barcoded products");
                     }
 
-                    // Check if barcode already exists
                     var existingBarcode = await _context.Products
                         .AnyAsync(p => p.Barcode != null && p.Barcode.ToLower() == request.Barcode.ToLower());
 
@@ -235,11 +264,6 @@ namespace ASTRASystem.Services
                         return ApiResponse<ProductDto>.ErrorResponse(
                             "A product with this barcode already exists");
                     }
-                }
-                else
-                {
-                    // Clear barcode if product is marked as non-barcoded
-                    request.Barcode = null;
                 }
 
                 var product = _mapper.Map<Product>(request);
@@ -251,6 +275,9 @@ namespace ASTRASystem.Services
                 _context.Products.Add(product);
                 await _context.SaveChangesAsync();
 
+                // Load category for response
+                await _context.Entry(product).Reference(p => p.Category).LoadAsync();
+
                 await _auditLogService.LogActionAsync(
                     userId,
                     "Product created",
@@ -259,11 +286,26 @@ namespace ASTRASystem.Services
                         ProductId = product.Id,
                         Sku = product.Sku,
                         Name = product.Name,
-                        IsBarcoded = product.IsBarcoded,
-                        Barcode = product.Barcode
+                        CategoryId = product.CategoryId,
+                        CategoryName = product.Category?.Name
                     });
 
-                var productDto = _mapper.Map<ProductDto>(product);
+                var productDto = new ProductDto
+                {
+                    Id = product.Id,
+                    Sku = product.Sku,
+                    Name = product.Name,
+                    CategoryId = product.CategoryId,
+                    CategoryName = product.Category?.Name,
+                    Price = product.Price,
+                    UnitOfMeasure = product.UnitOfMeasure,
+                    IsPerishable = product.IsPerishable,
+                    IsBarcoded = product.IsBarcoded,
+                    Barcode = product.Barcode,
+                    CreatedAt = product.CreatedAt,
+                    UpdatedAt = product.UpdatedAt
+                };
+
                 return ApiResponse<ProductDto>.SuccessResponse(
                     productDto,
                     "Product created successfully");
@@ -327,7 +369,7 @@ namespace ASTRASystem.Services
 
                 product.Sku = request.Sku;
                 product.Name = request.Name;
-                product.Category = request.Category;
+                product.Category = request.CategoryId;
                 product.Price = request.Price;
                 product.UnitOfMeasure = request.UnitOfMeasure;
                 product.IsPerishable = request.IsPerishable;
@@ -456,15 +498,13 @@ namespace ASTRASystem.Services
         {
             try
             {
-                var categories = await _context.Products
-                    .AsNoTracking()
-                    .Where(p => !string.IsNullOrEmpty(p.Category))
-                    .Select(p => p.Category)
-                    .Distinct()
-                    .OrderBy(c => c)
+                var categoryNames = await _context.Categories
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.Name)
+                    .Select(c => c.Name)
                     .ToListAsync();
 
-                return ApiResponse<List<string>>.SuccessResponse(categories);
+                return ApiResponse<List<string>>.SuccessResponse(categoryNames);
             }
             catch (Exception ex)
             {

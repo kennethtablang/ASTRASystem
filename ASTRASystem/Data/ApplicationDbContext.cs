@@ -1,6 +1,7 @@
 ﻿using ASTRASystem.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection.Emit;
 
 namespace ASTRASystem.Data
 {
@@ -24,6 +25,7 @@ namespace ASTRASystem.Data
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Category> Categories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -65,6 +67,24 @@ namespace ASTRASystem.Data
             builder.Entity<Store>()
                 .Property(s => s.CreditLimit)
                 .HasColumnType("decimal(18,2)");
+
+            builder.Entity<Product>()
+                .HasOne(p => p.Category)
+                .WithMany(c => c.Products)
+                .HasForeignKey(p => p.CategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Add indexes for better query performance
+            builder.Entity<Category>()
+                .HasIndex(c => c.Name)
+                .IsUnique();
+
+            builder.Entity<Product>()
+                .HasIndex(p => p.Sku)
+                .IsUnique();
+
+            builder.Entity<Product>()
+                .HasIndex(p => p.CategoryId);
 
             // ---- Decimal precision for geographic coordinates (Lat/Lng) ----
             // Format: decimal(precision, scale)

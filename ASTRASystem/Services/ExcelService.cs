@@ -205,7 +205,7 @@ namespace ASTRASystem.Services
                     worksheet.Cell(row, 1).Value = product.Id;
                     worksheet.Cell(row, 2).Value = product.Sku;
                     worksheet.Cell(row, 3).Value = product.Name;
-                    worksheet.Cell(row, 4).Value = product.Category ?? "";
+                    //worksheet.Cell(row, 4).Value = product.Category ?? "";
                     worksheet.Cell(row, 5).Value = product.Price;
                     worksheet.Cell(row, 6).Value = product.UnitOfMeasure ?? "";
                     worksheet.Cell(row, 7).Value = product.IsPerishable ? "Yes" : "No";

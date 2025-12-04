@@ -12,8 +12,7 @@ namespace ASTRASystem.DTO.Product
         [MaxLength(300)]
         public string Name { get; set; }
 
-        [MaxLength(100)]
-        public string? Category { get; set; }
+        public long? CategoryId { get; set; }
 
         [Required(ErrorMessage = "Price is required")]
         [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than zero")]
