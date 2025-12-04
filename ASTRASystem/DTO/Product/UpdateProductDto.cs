@@ -26,5 +26,10 @@ namespace ASTRASystem.DTO.Product
         public string? UnitOfMeasure { get; set; }
 
         public bool IsPerishable { get; set; }
+
+        public bool IsBarcoded { get; set; }
+
+        [MaxLength(100)]
+        public string? Barcode { get; set; }
     }
 }

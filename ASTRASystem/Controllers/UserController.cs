@@ -2,6 +2,7 @@
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
@@ -22,7 +23,7 @@ namespace ASTRASystem.Controllers
         [HttpGet("me")]
         public async Task<IActionResult> GetCurrentUser()
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized();
@@ -68,16 +69,30 @@ namespace ASTRASystem.Controllers
             return Ok(result);
         }
 
+        // Update current user's own profile
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized();
             }
 
             var result = await _userService.UpdateUserProfileAsync(userId, request);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
+        // Admin update any user's profile
+        [HttpPut("{id}/profile")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> UpdateUserProfile(string id, [FromBody] UpdateUserProfileDto request)
+        {
+            var result = await _userService.UpdateUserProfileAsync(id, request);
             if (!result.Success)
             {
                 return BadRequest(result);

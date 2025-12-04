@@ -9,6 +9,8 @@
         public decimal Price { get; set; }
         public string? UnitOfMeasure { get; set; }
         public bool IsPerishable { get; set; }
+        public bool IsBarcoded { get; set; }
+        public string? Barcode { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

@@ -7,6 +7,7 @@ namespace ASTRASystem.Interfaces
     {
         Task<ApiResponse<ProductDto>> GetProductByIdAsync(long id);
         Task<ApiResponse<ProductDto>> GetProductBySkuAsync(string sku);
+        Task<ApiResponse<ProductDto>> GetProductByBarcodeAsync(string barcode);
         Task<ApiResponse<PaginatedResponse<ProductDto>>> GetProductsAsync(ProductQueryDto query);
         Task<ApiResponse<List<ProductListItemDto>>> GetProductsForLookupAsync(string? searchTerm = null);
         Task<ApiResponse<ProductDto>> CreateProductAsync(CreateProductDto request, string userId);
@@ -16,6 +17,7 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<List<string>>> GetProductCategoriesAsync();
         Task<ApiResponse<byte[]>> GenerateBarcodeAsync(GenerateBarcodeDto request);
     }
+
     public interface IBarcodeService
     {
         byte[] GenerateQRCode(string content, int width = 300, int height = 300);

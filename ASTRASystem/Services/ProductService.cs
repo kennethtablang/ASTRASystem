@@ -76,6 +76,29 @@ namespace ASTRASystem.Services
             }
         }
 
+        public async Task<ApiResponse<ProductDto>> GetProductByBarcodeAsync(string barcode)
+        {
+            try
+            {
+                var product = await _context.Products
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Barcode != null && p.Barcode == barcode);
+
+                if (product == null)
+                {
+                    return ApiResponse<ProductDto>.ErrorResponse("Product not found with this barcode");
+                }
+
+                var productDto = _mapper.Map<ProductDto>(product);
+                return ApiResponse<ProductDto>.SuccessResponse(productDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting product by barcode {Barcode}", barcode);
+                return ApiResponse<ProductDto>.ErrorResponse("An error occurred while retrieving product");
+            }
+        }
+
         public async Task<ApiResponse<PaginatedResponse<ProductDto>>> GetProductsAsync(ProductQueryDto query)
         {
             try
@@ -89,7 +112,8 @@ namespace ASTRASystem.Services
                     productsQuery = productsQuery.Where(p =>
                         p.Name.ToLower().Contains(searchLower) ||
                         p.Sku.ToLower().Contains(searchLower) ||
-                        (p.Category != null && p.Category.ToLower().Contains(searchLower)));
+                        (p.Category != null && p.Category.ToLower().Contains(searchLower)) ||
+                        (p.Barcode != null && p.Barcode.ToLower().Contains(searchLower)));
                 }
 
                 if (!string.IsNullOrWhiteSpace(query.Category))
@@ -160,7 +184,8 @@ namespace ASTRASystem.Services
                     var searchLower = searchTerm.ToLower();
                     query = query.Where(p =>
                         p.Name.ToLower().Contains(searchLower) ||
-                        p.Sku.ToLower().Contains(searchLower));
+                        p.Sku.ToLower().Contains(searchLower) ||
+                        (p.Barcode != null && p.Barcode.ToLower().Contains(searchLower)));
                 }
 
                 var products = await query
@@ -192,6 +217,31 @@ namespace ASTRASystem.Services
                         "A product with this SKU already exists");
                 }
 
+                // Validate barcode if product is barcoded
+                if (request.IsBarcoded)
+                {
+                    if (string.IsNullOrWhiteSpace(request.Barcode))
+                    {
+                        return ApiResponse<ProductDto>.ErrorResponse(
+                            "Barcode is required for barcoded products");
+                    }
+
+                    // Check if barcode already exists
+                    var existingBarcode = await _context.Products
+                        .AnyAsync(p => p.Barcode != null && p.Barcode.ToLower() == request.Barcode.ToLower());
+
+                    if (existingBarcode)
+                    {
+                        return ApiResponse<ProductDto>.ErrorResponse(
+                            "A product with this barcode already exists");
+                    }
+                }
+                else
+                {
+                    // Clear barcode if product is marked as non-barcoded
+                    request.Barcode = null;
+                }
+
                 var product = _mapper.Map<Product>(request);
                 product.CreatedAt = DateTime.UtcNow;
                 product.UpdatedAt = DateTime.UtcNow;
@@ -204,7 +254,14 @@ namespace ASTRASystem.Services
                 await _auditLogService.LogActionAsync(
                     userId,
                     "Product created",
-                    new { ProductId = product.Id, Sku = product.Sku, Name = product.Name });
+                    new
+                    {
+                        ProductId = product.Id,
+                        Sku = product.Sku,
+                        Name = product.Name,
+                        IsBarcoded = product.IsBarcoded,
+                        Barcode = product.Barcode
+                    });
 
                 var productDto = _mapper.Map<ProductDto>(product);
                 return ApiResponse<ProductDto>.SuccessResponse(
@@ -238,7 +295,35 @@ namespace ASTRASystem.Services
                         "A product with this SKU already exists");
                 }
 
+                // Validate barcode if product is barcoded
+                if (request.IsBarcoded)
+                {
+                    if (string.IsNullOrWhiteSpace(request.Barcode))
+                    {
+                        return ApiResponse<ProductDto>.ErrorResponse(
+                            "Barcode is required for barcoded products");
+                    }
+
+                    // Check if barcode already exists (excluding current product)
+                    var duplicateBarcode = await _context.Products
+                        .AnyAsync(p => p.Barcode != null &&
+                                      p.Barcode.ToLower() == request.Barcode.ToLower() &&
+                                      p.Id != request.Id);
+
+                    if (duplicateBarcode)
+                    {
+                        return ApiResponse<ProductDto>.ErrorResponse(
+                            "A product with this barcode already exists");
+                    }
+                }
+                else
+                {
+                    // Clear barcode if product is marked as non-barcoded
+                    request.Barcode = null;
+                }
+
                 var oldPrice = product.Price;
+                var oldBarcode = product.Barcode;
 
                 product.Sku = request.Sku;
                 product.Name = request.Name;
@@ -246,6 +331,8 @@ namespace ASTRASystem.Services
                 product.Price = request.Price;
                 product.UnitOfMeasure = request.UnitOfMeasure;
                 product.IsPerishable = request.IsPerishable;
+                product.IsBarcoded = request.IsBarcoded;
+                product.Barcode = request.Barcode;
                 product.UpdatedAt = DateTime.UtcNow;
                 product.UpdatedById = userId;
 
@@ -260,7 +347,10 @@ namespace ASTRASystem.Services
                         Sku = product.Sku,
                         Name = product.Name,
                         OldPrice = oldPrice,
-                        NewPrice = request.Price
+                        NewPrice = request.Price,
+                        IsBarcoded = product.IsBarcoded,
+                        OldBarcode = oldBarcode,
+                        NewBarcode = product.Barcode
                     });
 
                 var productDto = _mapper.Map<ProductDto>(product);
@@ -396,8 +486,10 @@ namespace ASTRASystem.Services
                     return ApiResponse<byte[]>.ErrorResponse("Product not found");
                 }
 
-                // Generate content (SKU or product info)
-                var barcodeContent = product.Sku;
+                // Use barcode if available, otherwise use SKU
+                var barcodeContent = !string.IsNullOrWhiteSpace(product.Barcode)
+                    ? product.Barcode
+                    : product.Sku;
 
                 byte[] barcodeImage;
 

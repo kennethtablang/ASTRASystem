@@ -41,6 +41,17 @@ namespace ASTRASystem.Controllers
             return Ok(result);
         }
 
+        [HttpGet("barcode/{barcode}")]
+        public async Task<IActionResult> GetProductByBarcode(string barcode)
+        {
+            var result = await _productService.GetProductByBarcodeAsync(barcode);
+            if (!result.Success)
+            {
+                return NotFound(result);
+            }
+            return Ok(result);
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetProducts([FromQuery] ProductQueryDto query)
         {
