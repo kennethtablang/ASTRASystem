@@ -1,7 +1,7 @@
-﻿using ASTRASystem.Models;
+﻿// ASTRASystem/Data/ApplicationDbContext.cs
+using ASTRASystem.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection.Emit;
 
 namespace ASTRASystem.Data
 {
@@ -16,6 +16,9 @@ namespace ASTRASystem.Data
         public DbSet<Warehouse> Warehouses { get; set; }
         public DbSet<Store> Stores { get; set; }
         public DbSet<Product> Products { get; set; }
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<Inventory> Inventories { get; set; }
+        public DbSet<InventoryMovement> InventoryMovements { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Trip> Trips { get; set; }
@@ -25,7 +28,6 @@ namespace ASTRASystem.Data
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<Notification> Notifications { get; set; }
-        public DbSet<Category> Categories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -68,13 +70,13 @@ namespace ASTRASystem.Data
                 .Property(s => s.CreditLimit)
                 .HasColumnType("decimal(18,2)");
 
+            // ---- Category relationships ----
             builder.Entity<Product>()
                 .HasOne(p => p.Category)
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Add indexes for better query performance
             builder.Entity<Category>()
                 .HasIndex(c => c.Name)
                 .IsUnique();
@@ -86,11 +88,44 @@ namespace ASTRASystem.Data
             builder.Entity<Product>()
                 .HasIndex(p => p.CategoryId);
 
-            // ---- Decimal precision for geographic coordinates (Lat/Lng) ----
-            // Format: decimal(precision, scale)
-            // For coordinates: decimal(10,7) gives 7 decimal places (~1.1cm accuracy)
-            // Range: -999.9999999 to 999.9999999 (more than enough for lat/lng)
+            // ---- Inventory relationships ----
+            builder.Entity<Inventory>()
+                .HasOne(i => i.Product)
+                .WithMany()
+                .HasForeignKey(i => i.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
 
+            builder.Entity<Inventory>()
+                .HasOne(i => i.Warehouse)
+                .WithMany()
+                .HasForeignKey(i => i.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Inventory>()
+                .HasMany(i => i.Movements)
+                .WithOne(m => m.Inventory)
+                .HasForeignKey(m => m.InventoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Unique constraint: one inventory record per product-warehouse combination
+            builder.Entity<Inventory>()
+                .HasIndex(i => new { i.ProductId, i.WarehouseId })
+                .IsUnique();
+
+            // Indexes for inventory queries
+            builder.Entity<Inventory>()
+                .HasIndex(i => i.StockLevel);
+
+            builder.Entity<Inventory>()
+                .HasIndex(i => i.LastRestocked);
+
+            builder.Entity<InventoryMovement>()
+                .HasIndex(m => m.MovementDate);
+
+            builder.Entity<InventoryMovement>()
+                .HasIndex(m => m.MovementType);
+
+            // ---- Decimal precision for geographic coordinates (Lat/Lng) ----
             builder.Entity<Warehouse>()
                 .Property(w => w.Latitude)
                 .HasColumnType("decimal(10,7)");
