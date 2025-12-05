@@ -3,6 +3,7 @@ using ASTRASystem.Enum;
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
@@ -42,11 +43,16 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Agent")]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDto request)
         {
-            var userId = User.Identity?.Name;
+            // Use ClaimTypes.NameIdentifier for the user ID - SAME AS PRODUCT/INVENTORY CONTROLLERS
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("CreateOrder: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("CreateOrder: User {UserId} creating order for store {StoreId}", userId, request.StoreId);
 
             var result = await _orderService.CreateOrderAsync(request, userId);
             if (!result.Success)
@@ -60,11 +66,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Agent")]
         public async Task<IActionResult> BatchCreateOrders([FromBody] BatchCreateOrderDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("BatchCreateOrders: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("BatchCreateOrders: User {UserId} creating {Count} orders", userId, request.Orders.Count);
 
             var result = await _orderService.BatchCreateOrdersAsync(request, userId);
             if (!result.Success)
@@ -78,11 +88,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> UpdateOrderStatus([FromBody] UpdateOrderStatusDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateOrderStatus: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateOrderStatus: User {UserId} updating order {OrderId}", userId, request.OrderId);
 
             var result = await _orderService.UpdateOrderStatusAsync(request, userId);
             if (!result.Success)
@@ -96,11 +110,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> ConfirmOrder([FromBody] ConfirmOrderDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("ConfirmOrder: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("ConfirmOrder: User {UserId} confirming order {OrderId}", userId, request.OrderId);
 
             var result = await _orderService.ConfirmOrderAsync(request, userId);
             if (!result.Success)
@@ -114,11 +132,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
         public async Task<IActionResult> MarkOrderAsPacked([FromBody] MarkOrderPackedDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("MarkOrderAsPacked: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("MarkOrderAsPacked: User {UserId} marking order {OrderId} as packed", userId, request.OrderId);
 
             var result = await _orderService.MarkOrderAsPackedAsync(request, userId);
             if (!result.Success)
@@ -132,11 +154,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Agent")]
         public async Task<IActionResult> CancelOrder(long id, [FromQuery] string? reason)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("CancelOrder: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("CancelOrder: User {UserId} cancelling order {OrderId}", userId, id);
 
             var result = await _orderService.CancelOrderAsync(id, userId, reason);
             if (!result.Success)
