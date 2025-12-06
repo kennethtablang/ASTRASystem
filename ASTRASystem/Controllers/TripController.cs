@@ -2,6 +2,7 @@
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
@@ -41,11 +42,16 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
         public async Task<IActionResult> CreateTrip([FromBody] CreateTripDto request)
         {
-            var userId = User.Identity?.Name;
+            // FIXED: Use ClaimTypes.NameIdentifier instead of User.Identity?.Name
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("CreateTrip: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("CreateTrip: User {UserId} creating trip for warehouse {WarehouseId}", userId, request.WarehouseId);
 
             var result = await _tripService.CreateTripAsync(request, userId);
             if (!result.Success)
@@ -61,14 +67,19 @@ namespace ASTRASystem.Controllers
         {
             if (id != request.TripId)
             {
-                return BadRequest("ID mismatch");
+                return BadRequest(new { success = false, message = "ID mismatch" });
             }
 
-            var userId = User.Identity?.Name;
+            // FIXED: Use ClaimTypes.NameIdentifier
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateTrip: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateTrip: User {UserId} updating trip {TripId}", userId, id);
 
             var result = await _tripService.UpdateTripAsync(request, userId);
             if (!result.Success)
@@ -82,11 +93,16 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
         public async Task<IActionResult> UpdateTripStatus([FromBody] UpdateTripStatusDto request)
         {
-            var userId = User.Identity?.Name;
+            // FIXED: Use ClaimTypes.NameIdentifier
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateTripStatus: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateTripStatus: User {UserId} updating trip {TripId} status", userId, request.TripId);
 
             var result = await _tripService.UpdateTripStatusAsync(request, userId);
             if (!result.Success)
@@ -100,11 +116,16 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
         public async Task<IActionResult> ReorderTripAssignments([FromBody] ReorderTripAssignmentsDto request)
         {
-            var userId = User.Identity?.Name;
+            // FIXED: Use ClaimTypes.NameIdentifier
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("ReorderTripAssignments: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("ReorderTripAssignments: User {UserId} reordering trip {TripId}", userId, request.TripId);
 
             var result = await _tripService.ReorderTripAssignmentsAsync(request, userId);
             if (!result.Success)
@@ -118,11 +139,16 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> CancelTrip(long id, [FromQuery] string? reason)
         {
-            var userId = User.Identity?.Name;
+            // FIXED: Use ClaimTypes.NameIdentifier
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("CancelTrip: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("CancelTrip: User {UserId} cancelling trip {TripId}", userId, id);
 
             var result = await _tripService.CancelTripAsync(id, userId, reason);
             if (!result.Success)

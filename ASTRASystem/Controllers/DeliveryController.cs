@@ -2,6 +2,7 @@
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
@@ -23,11 +24,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
         public async Task<IActionResult> UploadDeliveryPhoto([FromForm] UploadDeliveryPhotoDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UploadDeliveryPhoto: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UploadDeliveryPhoto: User {UserId} uploading photo for order {OrderId}", userId, request.OrderId);
 
             var result = await _deliveryService.UploadDeliveryPhotoAsync(request, userId);
             if (!result.Success)
@@ -48,11 +53,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Dispatcher")]
         public async Task<IActionResult> UpdateLocation([FromBody] LocationUpdateDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateLocation: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateLocation: User {UserId} updating location for trip {TripId}", userId, request.TripId);
 
             var result = await _deliveryService.UpdateLocationAsync(request, userId);
             if (!result.Success)
@@ -77,11 +86,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
         public async Task<IActionResult> MarkOrderAsDelivered([FromForm] MarkDeliveredDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("MarkOrderAsDelivered: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("MarkOrderAsDelivered: User {UserId} marking order {OrderId} as delivered", userId, request.OrderId);
 
             var result = await _deliveryService.MarkOrderAsDeliveredAsync(request, userId);
             if (!result.Success)
@@ -95,11 +108,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
         public async Task<IActionResult> ReportDeliveryException([FromForm] ReportDeliveryExceptionDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("ReportDeliveryException: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("ReportDeliveryException: User {UserId} reporting exception for order {OrderId}", userId, request.OrderId);
 
             var result = await _deliveryService.ReportDeliveryExceptionAsync(request, userId);
             if (!result.Success)
@@ -113,11 +130,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
         public async Task<IActionResult> RecordDeliveryAttempt([FromBody] DeliveryAttemptDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("RecordDeliveryAttempt: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("RecordDeliveryAttempt: User {UserId} recording attempt for order {OrderId}", userId, request.OrderId);
 
             var result = await _deliveryService.RecordDeliveryAttemptAsync(request, userId);
             if (!result.Success)

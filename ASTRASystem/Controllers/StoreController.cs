@@ -2,6 +2,7 @@
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
@@ -48,11 +49,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Agent")]
         public async Task<IActionResult> CreateStore([FromBody] CreateStoreDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("CreateStore: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("CreateStore: User {UserId} creating store {StoreName}", userId, request.Name);
 
             var result = await _storeService.CreateStoreAsync(request, userId);
             if (!result.Success)
@@ -68,14 +73,18 @@ namespace ASTRASystem.Controllers
         {
             if (id != request.Id)
             {
-                return BadRequest("ID mismatch");
+                return BadRequest(new { success = false, message = "ID mismatch" });
             }
 
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateStore: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateStore: User {UserId} updating store {StoreId}", userId, id);
 
             var result = await _storeService.UpdateStoreAsync(request, userId);
             if (!result.Success)
@@ -101,11 +110,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Accountant")]
         public async Task<IActionResult> UpdateCreditLimit([FromBody] UpdateCreditLimitDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateCreditLimit: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateCreditLimit: User {UserId} updating credit limit for store {StoreId}", userId, request.StoreId);
 
             var result = await _storeService.UpdateCreditLimitAsync(request, userId);
             if (!result.Success)

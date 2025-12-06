@@ -2,6 +2,7 @@
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
@@ -46,11 +47,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> CreateWarehouse([FromBody] CreateWarehouseDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("CreateWarehouse: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("CreateWarehouse: User {UserId} creating warehouse {WarehouseName}", userId, request.Name);
 
             var result = await _warehouseService.CreateWarehouseAsync(request, userId);
             if (!result.Success)
@@ -66,14 +71,18 @@ namespace ASTRASystem.Controllers
         {
             if (id != request.Id)
             {
-                return BadRequest("ID mismatch");
+                return BadRequest(new { success = false, message = "ID mismatch" });
             }
 
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateWarehouse: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateWarehouse: User {UserId} updating warehouse {WarehouseId}", userId, id);
 
             var result = await _warehouseService.UpdateWarehouseAsync(request, userId);
             if (!result.Success)
@@ -120,11 +129,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateDistributor([FromBody] DistributorDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("CreateDistributor: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("CreateDistributor: User {UserId} creating distributor {DistributorName}", userId, request.Name);
 
             var result = await _distributorService.CreateDistributorAsync(request, userId);
             if (!result.Success)
@@ -140,14 +153,18 @@ namespace ASTRASystem.Controllers
         {
             if (id != request.Id)
             {
-                return BadRequest("ID mismatch");
+                return BadRequest(new { success = false, message = "ID mismatch" });
             }
 
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("UpdateDistributor: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("UpdateDistributor: User {UserId} updating distributor {DistributorId}", userId, id);
 
             var result = await _distributorService.UpdateDistributorAsync(request, userId);
             if (!result.Success)

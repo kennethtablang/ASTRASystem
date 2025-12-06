@@ -2,6 +2,7 @@
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
@@ -48,11 +49,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Accountant,Dispatcher")]
         public async Task<IActionResult> RecordPayment([FromBody] RecordPaymentDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("RecordPayment: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("RecordPayment: User {UserId} recording payment for order {OrderId}", userId, request.OrderId);
 
             var result = await _paymentService.RecordPaymentAsync(request, userId);
             if (!result.Success)
@@ -74,11 +79,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,Accountant")]
         public async Task<IActionResult> ReconcilePayment([FromBody] ReconcilePaymentDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("ReconcilePayment: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("ReconcilePayment: User {UserId} reconciling payment {PaymentId}", userId, request.PaymentId);
 
             var result = await _paymentService.ReconcilePaymentAsync(request, userId);
             if (!result.Success)
@@ -142,11 +151,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Accountant")]
         public async Task<IActionResult> GenerateInvoice([FromBody] GenerateInvoiceDto request)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("GenerateInvoice: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("GenerateInvoice: User {UserId} generating invoice for order {OrderId}", userId, request.OrderId);
 
             var result = await _invoiceService.GenerateInvoiceAsync(request, userId);
             if (!result.Success)

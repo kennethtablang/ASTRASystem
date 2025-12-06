@@ -2,6 +2,7 @@
 using ASTRASystem.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ASTRASystem.Controllers
 {
@@ -27,10 +28,12 @@ namespace ASTRASystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetUserNotifications([FromQuery] bool unreadOnly = false)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("GetUserNotifications: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
 
             var result = await _notificationService.GetUserNotificationsAsync(userId, unreadOnly);
@@ -40,11 +43,15 @@ namespace ASTRASystem.Controllers
         [HttpPost("{id}/read")]
         public async Task<IActionResult> MarkAsRead(long id)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("MarkAsRead: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("MarkAsRead: User {UserId} marking notification {NotificationId} as read", userId, id);
 
             var result = await _notificationService.MarkAsReadAsync(id, userId);
             if (!result.Success)
@@ -57,11 +64,15 @@ namespace ASTRASystem.Controllers
         [HttpPost("mark-all-read")]
         public async Task<IActionResult> MarkAllAsRead()
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("MarkAllAsRead: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
+
+            _logger.LogInformation("MarkAllAsRead: User {UserId} marking all notifications as read", userId);
 
             var result = await _notificationService.MarkAllAsReadAsync(userId);
             if (!result.Success)
@@ -74,10 +85,12 @@ namespace ASTRASystem.Controllers
         [HttpGet("unread-count")]
         public async Task<IActionResult> GetUnreadCount()
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("GetUnreadCount: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
 
             var result = await _notificationService.GetUnreadCountAsync(userId);
@@ -104,10 +117,12 @@ namespace ASTRASystem.Controllers
         [HttpGet("audit-logs/me")]
         public async Task<IActionResult> GetMyAuditLogs([FromQuery] int limit = 50)
         {
-            var userId = User.Identity?.Name;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                _logger.LogWarning("GetMyAuditLogs: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
             }
 
             var result = await _auditLogService.GetUserAuditLogsAsync(userId, limit);
