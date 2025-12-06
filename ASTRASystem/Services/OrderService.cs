@@ -701,5 +701,298 @@ namespace ASTRASystem.Services
                 return ApiResponse<byte[]>.ErrorResponse("An error occurred");
             }
         }
+        public async Task<ApiResponse<OrderDto>> DispatchOrderAsync(long orderId, string userId, long tripId)
+        {
+            try
+            {
+                var order = await _context.Orders
+                    .Include(o => o.Store)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+
+                if (order == null)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse("Order not found");
+                }
+
+                if (order.Status != OrderStatus.Packed)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse(
+                        "Only packed orders can be dispatched");
+                }
+
+                // Verify trip exists
+                var trip = await _context.Trips.FindAsync(tripId);
+                if (trip == null)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse("Trip not found");
+                }
+
+                order.Status = OrderStatus.Dispatched;
+                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedById = userId;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Order dispatched",
+                    new { OrderId = order.Id, TripId = tripId });
+
+                await _notificationService.SendNotificationAsync(
+                    order.AgentId,
+                    "OrderDispatched",
+                    $"Order #{order.Id} has been dispatched");
+
+                return await GetOrderByIdAsync(order.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error dispatching order");
+                return ApiResponse<OrderDto>.ErrorResponse("An error occurred while dispatching order");
+            }
+        }
+
+        public async Task<ApiResponse<OrderDto>> MarkOrderInTransitAsync(long orderId, string userId)
+        {
+            try
+            {
+                var order = await _context.Orders.FindAsync(orderId);
+                if (order == null)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse("Order not found");
+                }
+
+                if (order.Status != OrderStatus.Dispatched)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse(
+                        "Only dispatched orders can be marked as in transit");
+                }
+
+                order.Status = OrderStatus.InTransit;
+                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedById = userId;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Order marked in transit",
+                    new { OrderId = order.Id });
+
+                return await GetOrderByIdAsync(order.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking order in transit");
+                return ApiResponse<OrderDto>.ErrorResponse("An error occurred");
+            }
+        }
+
+        public async Task<ApiResponse<OrderDto>> MarkOrderAtStoreAsync(long orderId, string userId)
+        {
+            try
+            {
+                var order = await _context.Orders.FindAsync(orderId);
+                if (order == null)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse("Order not found");
+                }
+
+                if (order.Status != OrderStatus.InTransit)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse(
+                        "Only in-transit orders can be marked as at store");
+                }
+
+                order.Status = OrderStatus.AtStore;
+                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedById = userId;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Order marked at store",
+                    new { OrderId = order.Id });
+
+                await _notificationService.SendNotificationAsync(
+                    order.AgentId,
+                    "OrderAtStore",
+                    $"Order #{order.Id} has arrived at the store");
+
+                return await GetOrderByIdAsync(order.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking order at store");
+                return ApiResponse<OrderDto>.ErrorResponse("An error occurred");
+            }
+        }
+
+        public async Task<ApiResponse<OrderDto>> MarkOrderDeliveredAsync(long orderId, string userId, string? notes)
+        {
+            try
+            {
+                var order = await _context.Orders.FindAsync(orderId);
+                if (order == null)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse("Order not found");
+                }
+
+                if (order.Status != OrderStatus.AtStore)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse(
+                        "Only orders at store can be marked as delivered");
+                }
+
+                order.Status = OrderStatus.Delivered;
+                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedById = userId;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Order delivered",
+                    new { OrderId = order.Id, Notes = notes });
+
+                await _notificationService.SendNotificationAsync(
+                    order.AgentId,
+                    "OrderDelivered",
+                    $"Order #{order.Id} has been successfully delivered");
+
+                return await GetOrderByIdAsync(order.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking order as delivered");
+                return ApiResponse<OrderDto>.ErrorResponse("An error occurred");
+            }
+        }
+
+        public async Task<ApiResponse<OrderDto>> MarkOrderReturnedAsync(long orderId, string userId, string reason)
+        {
+            try
+            {
+                var order = await _context.Orders.FindAsync(orderId);
+                if (order == null)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse("Order not found");
+                }
+
+                // Allow return from InTransit, AtStore, or Delivered status
+                if (order.Status != OrderStatus.InTransit &&
+                    order.Status != OrderStatus.AtStore &&
+                    order.Status != OrderStatus.Delivered)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse(
+                        "Only in-transit, at-store, or delivered orders can be marked as returned");
+                }
+
+                order.Status = OrderStatus.Returned;
+                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedById = userId;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Order returned",
+                    new { OrderId = order.Id, Reason = reason });
+
+                await _notificationService.SendNotificationAsync(
+                    order.AgentId,
+                    "OrderReturned",
+                    $"Order #{order.Id} has been returned. Reason: {reason}");
+
+                return await GetOrderByIdAsync(order.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking order as returned");
+                return ApiResponse<OrderDto>.ErrorResponse("An error occurred");
+            }
+        }
+
+        public async Task<ApiResponse<OrderDto>> EditOrderAsync(long orderId, UpdateOrderDto request, string userId)
+        {
+            try
+            {
+                var order = await _context.Orders
+                    .Include(o => o.Items)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+
+                if (order == null)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse("Order not found");
+                }
+
+                // Only allow editing of Pending orders
+                if (order.Status != OrderStatus.Pending)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse(
+                        "Only pending orders can be edited");
+                }
+
+                // Update order properties
+                order.Priority = request.Priority;
+                order.ScheduledFor = request.ScheduledFor;
+                order.DistributorId = request.DistributorId;
+                order.WarehouseId = request.WarehouseId;
+                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedById = userId;
+
+                // Remove existing items
+                _context.OrderItems.RemoveRange(order.Items);
+
+                // Add new items
+                var productIds = request.Items.Select(i => i.ProductId).ToList();
+                var products = await _context.Products
+                    .Where(p => productIds.Contains(p.Id))
+                    .ToListAsync();
+
+                decimal subTotal = 0;
+
+                foreach (var itemDto in request.Items)
+                {
+                    var product = products.First(p => p.Id == itemDto.ProductId);
+                    var unitPrice = itemDto.UnitPrice ?? product.Price;
+
+                    var orderItem = new OrderItem
+                    {
+                        OrderId = order.Id,
+                        ProductId = itemDto.ProductId,
+                        Quantity = itemDto.Quantity,
+                        UnitPrice = unitPrice,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = userId,
+                        UpdatedById = userId
+                    };
+
+                    order.Items.Add(orderItem);
+                    subTotal += orderItem.Quantity * orderItem.UnitPrice;
+                }
+
+                // Recalculate totals
+                order.SubTotal = subTotal;
+                order.Tax = subTotal * 0.12m;
+                order.Total = order.SubTotal + order.Tax;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Order edited",
+                    new { OrderId = order.Id });
+
+                return await GetOrderByIdAsync(order.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error editing order");
+                return ApiResponse<OrderDto>.ErrorResponse("An error occurred while editing order");
+            }
+        }
     }
 }

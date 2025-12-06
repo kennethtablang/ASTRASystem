@@ -220,5 +220,142 @@ namespace ASTRASystem.Controllers
 
             return File(result.Data, "application/pdf", $"packing_slip_{id}.pdf");
         }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Agent")]
+        public async Task<IActionResult> EditOrder(long id, [FromBody] UpdateOrderDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("EditOrder: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            if (id != request.OrderId)
+            {
+                return BadRequest(new { success = false, message = "Order ID mismatch" });
+            }
+
+            _logger.LogInformation("EditOrder: User {UserId} editing order {OrderId}", userId, id);
+
+            var result = await _orderService.EditOrderAsync(id, request, userId);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/dispatch")]
+        [Authorize(Roles = "Admin,Dispatcher")]
+        public async Task<IActionResult> DispatchOrder(long id, [FromBody] DispatchOrderDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("DispatchOrder: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            _logger.LogInformation("DispatchOrder: User {UserId} dispatching order {OrderId}", userId, id);
+
+            var result = await _orderService.DispatchOrderAsync(id, userId, request.TripId);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/in-transit")]
+        [Authorize(Roles = "Admin,Dispatcher")]
+        public async Task<IActionResult> MarkOrderInTransit(long id)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("MarkOrderInTransit: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            _logger.LogInformation("MarkOrderInTransit: User {UserId} marking order {OrderId} in transit", userId, id);
+
+            var result = await _orderService.MarkOrderInTransitAsync(id, userId);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/at-store")]
+        [Authorize(Roles = "Admin,Dispatcher")]
+        public async Task<IActionResult> MarkOrderAtStore(long id)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("MarkOrderAtStore: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            _logger.LogInformation("MarkOrderAtStore: User {UserId} marking order {OrderId} at store", userId, id);
+
+            var result = await _orderService.MarkOrderAtStoreAsync(id, userId);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/delivered")]
+        [Authorize(Roles = "Admin,Dispatcher")]
+        public async Task<IActionResult> MarkOrderDelivered(long id, [FromBody] MarkOrderDeliveredDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("MarkOrderDelivered: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            _logger.LogInformation("MarkOrderDelivered: User {UserId} marking order {OrderId} delivered", userId, id);
+
+            var result = await _orderService.MarkOrderDeliveredAsync(id, userId, request.Notes);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/returned")]
+        [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
+        public async Task<IActionResult> MarkOrderReturned(long id, [FromBody] MarkOrderReturnedDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("MarkOrderReturned: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            _logger.LogInformation("MarkOrderReturned: User {UserId} marking order {OrderId} returned", userId, id);
+
+            var result = await _orderService.MarkOrderReturnedAsync(id, userId, request.Reason);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
     }
 }

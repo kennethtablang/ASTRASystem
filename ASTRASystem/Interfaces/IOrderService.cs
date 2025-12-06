@@ -19,5 +19,11 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<List<OrderDto>>> GetOrdersReadyForDispatchAsync(long? warehouseId = null);
         Task<ApiResponse<byte[]>> GeneratePickListAsync(long warehouseId, List<long> orderIds);
         Task<ApiResponse<byte[]>> GeneratePackingSlipAsync(long orderId);
+        Task<ApiResponse<OrderDto>> DispatchOrderAsync(long orderId, string userId, long tripId);
+        Task<ApiResponse<OrderDto>> MarkOrderInTransitAsync(long orderId, string userId);
+        Task<ApiResponse<OrderDto>> MarkOrderAtStoreAsync(long orderId, string userId);
+        Task<ApiResponse<OrderDto>> MarkOrderDeliveredAsync(long orderId, string userId, string? notes);
+        Task<ApiResponse<OrderDto>> MarkOrderReturnedAsync(long orderId, string userId, string reason);
+        Task<ApiResponse<OrderDto>> EditOrderAsync(long orderId, UpdateOrderDto request, string userId);
     }
 }
