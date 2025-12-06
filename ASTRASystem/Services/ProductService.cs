@@ -81,8 +81,9 @@ namespace ASTRASystem.Services
             try
             {
                 var product = await _context.Products
+                    .Include(p => p.Category)
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Barcode != null && p.Barcode == barcode);
+                    .FirstOrDefaultAsync(p => p.Barcode == barcode);
 
                 if (product == null)
                 {

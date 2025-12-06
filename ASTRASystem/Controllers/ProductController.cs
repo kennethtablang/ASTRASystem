@@ -45,12 +45,20 @@ namespace ASTRASystem.Controllers
         [HttpGet("barcode/{barcode}")]
         public async Task<IActionResult> GetProductByBarcode(string barcode)
         {
-            var result = await _productService.GetProductByBarcodeAsync(barcode);
-            if (!result.Success)
+            try
             {
-                return NotFound(result);
+                var result = await _productService.GetProductByBarcodeAsync(barcode);
+                if (!result.Success)
+                {
+                    return NotFound(result);
+                }
+                return Ok(result);
             }
-            return Ok(result);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting product by barcode {Barcode}", barcode);
+                return StatusCode(500, new { success = false, message = "An error occurred" });
+            }
         }
 
         [HttpGet]
