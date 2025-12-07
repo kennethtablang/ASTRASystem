@@ -45,7 +45,7 @@ namespace ASTRASystem.Services
 
                 var inventoryDto = _mapper.Map<InventoryDto>(inventory);
                 inventoryDto.Status = GetStockStatus(inventory);
-
+                 
                 return ApiResponse<InventoryDto>.SuccessResponse(inventoryDto);
             }
             catch (Exception ex)
