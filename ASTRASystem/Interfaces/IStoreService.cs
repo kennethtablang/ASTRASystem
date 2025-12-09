@@ -14,7 +14,5 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<bool>> UpdateCreditLimitAsync(UpdateCreditLimitDto request, string userId);
         Task<ApiResponse<StoreWithBalanceDto>> GetStoreWithBalanceAsync(long id);
         Task<ApiResponse<List<StoreWithBalanceDto>>> GetStoresWithOutstandingBalanceAsync();
-        Task<ApiResponse<List<LocationLookupDto>>> GetBarangaysAsync(string? city = null);
-        Task<ApiResponse<List<string>>> GetCitiesAsync();
     }
 }

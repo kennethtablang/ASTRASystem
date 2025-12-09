@@ -23,6 +23,8 @@ namespace ASTRASystem.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Trip> Trips { get; set; }
         public DbSet<TripAssignment> TripAssignments { get; set; }
+        public DbSet<City> Cities { get; set; }
+        public DbSet<Barangay> Barangays { get; set; }
         public DbSet<DeliveryPhoto> DeliveryPhotos { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Invoice> Invoices { get; set; }
@@ -125,6 +127,45 @@ namespace ASTRASystem.Data
             builder.Entity<InventoryMovement>()
                 .HasIndex(m => m.MovementType);
 
+            // ---- City relationships ----
+            builder.Entity<City>()
+                .HasIndex(c => c.Name);
+
+            builder.Entity<City>()
+                .HasMany(c => c.Barangays)
+                .WithOne(b => b.City)
+                .HasForeignKey(b => b.CityId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<City>()
+                .HasMany(c => c.Stores)
+                .WithOne(s => s.City)
+                .HasForeignKey(s => s.CityId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ---- Barangay relationships ----
+            builder.Entity<Barangay>()
+                .HasIndex(b => new { b.CityId, b.Name })
+                .IsUnique();
+
+            builder.Entity<Barangay>()
+                .HasMany(b => b.Stores)
+                .WithOne(s => s.Barangay)
+                .HasForeignKey(s => s.BarangayId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ---- Store location relationships ----
+            builder.Entity<Store>()
+                .HasIndex(s => s.CityId);
+
+            builder.Entity<Store>()
+                .HasIndex(s => s.BarangayId);
+
+            // Remove the old composite index on string fields if it still exists
+            // This line can be removed if you've already migrated away from string-based locations
+            // builder.Entity<Store>()
+            //     .HasIndex(s => new { s.Barangay, s.City });
+
             // ---- Decimal precision for geographic coordinates (Lat/Lng) ----
             builder.Entity<Warehouse>()
                 .Property(w => w.Latitude)
@@ -142,7 +183,7 @@ namespace ASTRASystem.Data
                 .Property(d => d.Lng)
                 .HasColumnType("decimal(10,7)");
 
-            // ---- Relationships & delete behavior ----
+            // ---- Order relationships & delete behavior ----
             builder.Entity<Order>()
                 .HasMany(o => o.Items)
                 .WithOne(i => i.Order)
@@ -182,9 +223,6 @@ namespace ASTRASystem.Data
 
             builder.Entity<Trip>()
                 .HasIndex(t => t.DispatcherId);
-
-            builder.Entity<Store>()
-                .HasIndex(s => new { s.Barangay, s.City });
 
             // ---- String length constraints ----
             builder.Entity<ApplicationUser>()

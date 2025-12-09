@@ -135,43 +135,150 @@ namespace ASTRASystem.Data
             {
                 var categories = new[]
                 {
-        new Category
-        {
-            Name = "Beverages",
-            Description = "Drinks and beverages",
-            Color = "#3B82F6",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            CreatedById = adminUser.Id,
-            UpdatedById = adminUser.Id
-        },
-        new Category
-        {
-            Name = "Snacks",
-            Description = "Snacks and chips",
-            Color = "#F59E0B",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            CreatedById = adminUser.Id,
-            UpdatedById = adminUser.Id
-        }
-    };
+                    new Category
+                    {
+                        Name = "Beverages",
+                        Description = "Drinks and beverages",
+                        Color = "#3B82F6",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Category
+                    {
+                        Name = "Snacks",
+                        Description = "Snacks and chips",
+                        Color = "#F59E0B",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    }
+                };
 
                 db.Categories.AddRange(categories);
                 await db.SaveChangesAsync();
                 logger?.LogInformation("Seeded {count} categories", categories.Length);
             }
 
-            // 6) Seed Stores
+            // 6) Seed Cities and Barangays
+            City meycauayanCity = null;
+            Barangay sanIsidroBarangay = null;
+
+            if (!await db.Cities.AnyAsync())
+            {
+                // Seed Meycauayan City
+                meycauayanCity = new City
+                {
+                    Name = "Meycauayan",
+                    Province = "Bulacan",
+                    Region = "Central Luzon",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id,
+                    UpdatedById = adminUser.Id
+                };
+                db.Cities.Add(meycauayanCity);
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Seeded City: {name}", meycauayanCity.Name);
+
+                // Seed Barangays for Meycauayan
+                var meycauayanBarangays = new[]
+                {
+                    "Bagbaguin", "Bahay Pare", "Bancal", "Banga", "Bayugo",
+                    "Caingin", "Calvario", "Camalig", "Hulo", "Iba",
+                    "Langka", "Lawa", "Libtong", "Lipas", "Longos",
+                    "Malhacan", "Pajo", "Pandayan", "Pantoc", "Perez",
+                    "Poblacion", "Saluysoy", "San Isidro", "Tugatog", "Ubihan"
+                };
+
+                foreach (var barangayName in meycauayanBarangays)
+                {
+                    var barangay = new Barangay
+                    {
+                        Name = barangayName,
+                        CityId = meycauayanCity.Id,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    };
+                    db.Barangays.Add(barangay);
+
+                    if (barangayName == "San Isidro")
+                    {
+                        sanIsidroBarangay = barangay;
+                    }
+                }
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Seeded {count} barangays for {city}", meycauayanBarangays.Length, meycauayanCity.Name);
+
+                // Seed additional cities (optional)
+                var additionalCities = new[]
+                {
+                    new City
+                    {
+                        Name = "Caloocan",
+                        Province = "Metro Manila",
+                        Region = "National Capital Region",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new City
+                    {
+                        Name = "Valenzuela",
+                        Province = "Metro Manila",
+                        Region = "National Capital Region",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new City
+                    {
+                        Name = "Malolos",
+                        Province = "Bulacan",
+                        Region = "Central Luzon",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    }
+                };
+
+                db.Cities.AddRange(additionalCities);
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Seeded {count} additional cities", additionalCities.Length);
+            }
+            else
+            {
+                // Load existing city and barangay for store creation
+                meycauayanCity = await db.Cities.FirstOrDefaultAsync(c => c.Name == "Meycauayan");
+                if (meycauayanCity != null)
+                {
+                    sanIsidroBarangay = await db.Barangays
+                        .FirstOrDefaultAsync(b => b.Name == "San Isidro" && b.CityId == meycauayanCity.Id);
+                }
+            }
+
+            // 7) Seed Stores with City/Barangay relationships
             if (!await db.Stores.AnyAsync())
             {
-                var s = new Store
+                var store = new Store
                 {
                     Name = "Sari-Sari Store - San Isidro",
-                    Barangay = "San Isidro",
-                    City = "Demo City",
+                    CityId = meycauayanCity?.Id,
+                    BarangayId = sanIsidroBarangay?.Id,
                     OwnerName = "Tito Manny",
                     Phone = "09171230000",
                     CreditLimit = 2000m,
@@ -181,12 +288,55 @@ namespace ASTRASystem.Data
                     CreatedById = adminUser.Id,
                     UpdatedById = adminUser.Id
                 };
-                db.Stores.Add(s);
+                db.Stores.Add(store);
                 await db.SaveChangesAsync();
-                logger?.LogInformation("Seeded sample Store {name}", s.Name);
+                logger?.LogInformation("Seeded sample Store {name} in {barangay}, {city}",
+                    store.Name, sanIsidroBarangay?.Name, meycauayanCity?.Name);
+
+                // Seed additional sample stores
+                if (meycauayanCity != null)
+                {
+                    var bagbaguinBarangay = await db.Barangays
+                        .FirstOrDefaultAsync(b => b.Name == "Bagbaguin" && b.CityId == meycauayanCity.Id);
+
+                    var additionalStores = new[]
+                    {
+                        new Store
+                        {
+                            Name = "Mini Mart - Bagbaguin",
+                            CityId = meycauayanCity.Id,
+                            BarangayId = bagbaguinBarangay?.Id,
+                            OwnerName = "Maria Santos",
+                            Phone = "09171231111",
+                            CreditLimit = 5000m,
+                            PreferredPaymentMethod = "Cash",
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow,
+                            CreatedById = adminUser.Id,
+                            UpdatedById = adminUser.Id
+                        },
+                        new Store
+                        {
+                            Name = "Corner Store - Poblacion",
+                            CityId = meycauayanCity.Id,
+                            OwnerName = "Juan Dela Cruz",
+                            Phone = "09171232222",
+                            CreditLimit = 3000m,
+                            PreferredPaymentMethod = "GCash",
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow,
+                            CreatedById = adminUser.Id,
+                            UpdatedById = adminUser.Id
+                        }
+                    };
+
+                    db.Stores.AddRange(additionalStores);
+                    await db.SaveChangesAsync();
+                    logger?.LogInformation("Seeded {count} additional stores", additionalStores.Length);
+                }
             }
 
-            // 7) Create other users (after distributor & warehouse exist)
+            // 8) Create other users (after distributor & warehouse exist)
 
             // Distributor admin (tied to distributor)
             var distAdmin = await userManager.FindByEmailAsync("distadmin@demo.local");
@@ -216,8 +366,8 @@ namespace ASTRASystem.Data
                 accountant = await EnsureUser("accountant1", "accountant1@demo.local", "Account", "One", "Accountant");
             }
 
-            // 8) Optional: create a sample order to illustrate relationships (only if none exist)
-            if (!await db.Orders.AnyAsync())
+            // 9) Optional: create a sample order to illustrate relationships (only if none exist)
+            if (!await db.Orders.AnyAsync() && await db.Products.AnyAsync())
             {
                 var product = await db.Products.FirstAsync();
                 var store = await db.Stores.FirstAsync();

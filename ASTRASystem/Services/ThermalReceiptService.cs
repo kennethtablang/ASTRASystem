@@ -66,7 +66,7 @@ namespace ASTRASystem.Services
                 if (!string.IsNullOrEmpty(order.Store.OwnerName))
                     receipt.Append($"Owner: {TruncateText(order.Store.OwnerName, maxChars)}\n");
 
-                receipt.Append($"{TruncateText(order.Store.Barangay, maxChars)}\n");
+                receipt.Append($"{TruncateText(order.Store, maxChars)}\n");
                 receipt.Append($"{TruncateText(order.Store.City, maxChars)}\n");
 
                 if (!string.IsNullOrEmpty(order.Store.Phone))

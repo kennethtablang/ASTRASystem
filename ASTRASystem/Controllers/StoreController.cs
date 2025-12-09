@@ -148,18 +148,5 @@ namespace ASTRASystem.Controllers
             return Ok(result);
         }
 
-        [HttpGet("locations/barangays")]
-        public async Task<IActionResult> GetBarangays([FromQuery] string? city = null)
-        {
-            var result = await _storeService.GetBarangaysAsync(city);
-            return Ok(result);
-        }
-
-        [HttpGet("locations/cities")]
-        public async Task<IActionResult> GetCities()
-        {
-            var result = await _storeService.GetCitiesAsync();
-            return Ok(result);
-        }
     }
 }

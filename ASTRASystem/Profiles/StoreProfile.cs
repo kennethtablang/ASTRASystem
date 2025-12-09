@@ -9,13 +9,20 @@ namespace ASTRASystem.Profiles
         public StoreProfile()
         {
             // Store -> StoreDto
-            CreateMap<Store, StoreDto>();
+            CreateMap<Store, StoreDto>()
+                .ForMember(dest => dest.BarangayName, opt => opt.MapFrom(src => src.Barangay != null ? src.Barangay.Name : null))
+                .ForMember(dest => dest.CityName, opt => opt.MapFrom(src => src.City != null ? src.City.Name : null))
+                .ForMember(dest => dest.Province, opt => opt.MapFrom(src => src.City != null ? src.City.Province : null));
 
             // Store -> StoreListItemDto
-            CreateMap<Store, StoreListItemDto>();
+            CreateMap<Store, StoreListItemDto>()
+                .ForMember(dest => dest.BarangayName, opt => opt.MapFrom(src => src.Barangay != null ? src.Barangay.Name : null))
+                .ForMember(dest => dest.CityName, opt => opt.MapFrom(src => src.City != null ? src.City.Name : null));
 
             // Store -> StoreWithBalanceDto
             CreateMap<Store, StoreWithBalanceDto>()
+                .ForMember(dest => dest.BarangayName, opt => opt.MapFrom(src => src.Barangay != null ? src.Barangay.Name : null))
+                .ForMember(dest => dest.CityName, opt => opt.MapFrom(src => src.City != null ? src.City.Name : null))
                 .ForMember(dest => dest.OutstandingBalance, opt => opt.Ignore())
                 .ForMember(dest => dest.OverdueInvoiceCount, opt => opt.Ignore());
 
@@ -26,6 +33,8 @@ namespace ASTRASystem.Profiles
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedById, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedById, opt => opt.Ignore())
+                .ForMember(dest => dest.Barangay, opt => opt.Ignore())
+                .ForMember(dest => dest.City, opt => opt.Ignore())
                 .ForMember(dest => dest.Orders, opt => opt.Ignore());
 
             // UpdateStoreDto -> Store
@@ -34,6 +43,8 @@ namespace ASTRASystem.Profiles
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedById, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedById, opt => opt.Ignore())
+                .ForMember(dest => dest.Barangay, opt => opt.Ignore())
+                .ForMember(dest => dest.City, opt => opt.Ignore())
                 .ForMember(dest => dest.Orders, opt => opt.Ignore());
         }
     }

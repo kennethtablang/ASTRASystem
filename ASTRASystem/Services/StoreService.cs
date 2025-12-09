@@ -32,6 +32,8 @@ namespace ASTRASystem.Services
             try
             {
                 var store = await _context.Stores
+                    .Include(s => s.Barangay)
+                    .Include(s => s.City)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.Id == id);
 
@@ -54,7 +56,10 @@ namespace ASTRASystem.Services
         {
             try
             {
-                var storesQuery = _context.Stores.AsNoTracking();
+                var storesQuery = _context.Stores
+                    .Include(s => s.Barangay)
+                    .Include(s => s.City)
+                    .AsNoTracking();
 
                 // Apply filters
                 if (!string.IsNullOrWhiteSpace(query.SearchTerm))
@@ -63,17 +68,19 @@ namespace ASTRASystem.Services
                     storesQuery = storesQuery.Where(s =>
                         s.Name.ToLower().Contains(searchLower) ||
                         (s.OwnerName != null && s.OwnerName.ToLower().Contains(searchLower)) ||
-                        (s.Phone != null && s.Phone.Contains(query.SearchTerm)));
+                        (s.Phone != null && s.Phone.Contains(query.SearchTerm)) ||
+                        (s.Barangay != null && s.Barangay.Name.ToLower().Contains(searchLower)) ||
+                        (s.City != null && s.City.Name.ToLower().Contains(searchLower)));
                 }
 
-                if (!string.IsNullOrWhiteSpace(query.Barangay))
+                if (query.BarangayId.HasValue)
                 {
-                    storesQuery = storesQuery.Where(s => s.Barangay == query.Barangay);
+                    storesQuery = storesQuery.Where(s => s.BarangayId == query.BarangayId.Value);
                 }
 
-                if (!string.IsNullOrWhiteSpace(query.City))
+                if (query.CityId.HasValue)
                 {
-                    storesQuery = storesQuery.Where(s => s.City == query.City);
+                    storesQuery = storesQuery.Where(s => s.CityId == query.CityId.Value);
                 }
 
                 // Apply sorting
@@ -83,11 +90,11 @@ namespace ASTRASystem.Services
                         ? storesQuery.OrderByDescending(s => s.Name)
                         : storesQuery.OrderBy(s => s.Name),
                     "barangay" => query.SortDescending
-                        ? storesQuery.OrderByDescending(s => s.Barangay)
-                        : storesQuery.OrderBy(s => s.Barangay),
+                        ? storesQuery.OrderByDescending(s => s.Barangay != null ? s.Barangay.Name : "")
+                        : storesQuery.OrderBy(s => s.Barangay != null ? s.Barangay.Name : ""),
                     "city" => query.SortDescending
-                        ? storesQuery.OrderByDescending(s => s.City)
-                        : storesQuery.OrderBy(s => s.City),
+                        ? storesQuery.OrderByDescending(s => s.City != null ? s.City.Name : "")
+                        : storesQuery.OrderBy(s => s.City != null ? s.City.Name : ""),
                     _ => storesQuery.OrderBy(s => s.Name)
                 };
 
@@ -114,7 +121,10 @@ namespace ASTRASystem.Services
         {
             try
             {
-                var query = _context.Stores.AsNoTracking();
+                var query = _context.Stores
+                    .Include(s => s.Barangay)
+                    .Include(s => s.City)
+                    .AsNoTracking();
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
@@ -143,6 +153,39 @@ namespace ASTRASystem.Services
         {
             try
             {
+                // Validate City and Barangay if provided
+                if (request.CityId.HasValue)
+                {
+                    var cityExists = await _context.Cities.AnyAsync(c => c.Id == request.CityId.Value);
+                    if (!cityExists)
+                    {
+                        return ApiResponse<StoreDto>.ErrorResponse("City not found");
+                    }
+                }
+
+                if (request.BarangayId.HasValue)
+                {
+                    var barangay = await _context.Barangays
+                        .Include(b => b.City)
+                        .FirstOrDefaultAsync(b => b.Id == request.BarangayId.Value);
+
+                    if (barangay == null)
+                    {
+                        return ApiResponse<StoreDto>.ErrorResponse("Barangay not found");
+                    }
+
+                    // Auto-set city from barangay if not provided
+                    if (!request.CityId.HasValue)
+                    {
+                        request.CityId = barangay.CityId;
+                    }
+                    else if (request.CityId != barangay.CityId)
+                    {
+                        return ApiResponse<StoreDto>.ErrorResponse(
+                            "Barangay does not belong to the specified city");
+                    }
+                }
+
                 // Check if store name already exists
                 var existingStore = await _context.Stores
                     .AnyAsync(s => s.Name.ToLower() == request.Name.ToLower());
@@ -167,6 +210,12 @@ namespace ASTRASystem.Services
                     "Store created",
                     new { StoreId = store.Id, Name = store.Name });
 
+                // Reload with includes
+                store = await _context.Stores
+                    .Include(s => s.Barangay)
+                    .Include(s => s.City)
+                    .FirstAsync(s => s.Id == store.Id);
+
                 var storeDto = _mapper.Map<StoreDto>(store);
                 return ApiResponse<StoreDto>.SuccessResponse(
                     storeDto,
@@ -183,10 +232,43 @@ namespace ASTRASystem.Services
         {
             try
             {
-                var store = await _context.Stores.FindAsync(request.Id);
+                var store = await _context.Stores
+                    .Include(s => s.Barangay)
+                    .Include(s => s.City)
+                    .FirstOrDefaultAsync(s => s.Id == request.Id);
+
                 if (store == null)
                 {
                     return ApiResponse<StoreDto>.ErrorResponse("Store not found");
+                }
+
+                // Validate City and Barangay if provided
+                if (request.CityId.HasValue)
+                {
+                    var cityExists = await _context.Cities.AnyAsync(c => c.Id == request.CityId.Value);
+                    if (!cityExists)
+                    {
+                        return ApiResponse<StoreDto>.ErrorResponse("City not found");
+                    }
+                }
+
+                if (request.BarangayId.HasValue)
+                {
+                    var barangay = await _context.Barangays
+                        .Include(b => b.City)
+                        .FirstOrDefaultAsync(b => b.Id == request.BarangayId.Value);
+
+                    if (barangay == null)
+                    {
+                        return ApiResponse<StoreDto>.ErrorResponse("Barangay not found");
+                    }
+
+                    // Validate barangay belongs to city
+                    if (request.CityId.HasValue && request.CityId != barangay.CityId)
+                    {
+                        return ApiResponse<StoreDto>.ErrorResponse(
+                            "Barangay does not belong to the specified city");
+                    }
                 }
 
                 // Check if name already exists (excluding current store)
@@ -209,6 +291,12 @@ namespace ASTRASystem.Services
                     userId,
                     "Store updated",
                     new { StoreId = store.Id, Name = store.Name });
+
+                // Reload with includes
+                store = await _context.Stores
+                    .Include(s => s.Barangay)
+                    .Include(s => s.City)
+                    .FirstAsync(s => s.Id == store.Id);
 
                 var storeDto = _mapper.Map<StoreDto>(store);
                 return ApiResponse<StoreDto>.SuccessResponse(
@@ -296,6 +384,8 @@ namespace ASTRASystem.Services
             try
             {
                 var store = await _context.Stores
+                    .Include(s => s.Barangay)
+                    .Include(s => s.City)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.Id == id);
 
@@ -351,6 +441,8 @@ namespace ASTRASystem.Services
             try
             {
                 var stores = await _context.Stores
+                    .Include(s => s.Barangay)
+                    .Include(s => s.City)
                     .AsNoTracking()
                     .ToListAsync();
 
@@ -401,61 +493,6 @@ namespace ASTRASystem.Services
             {
                 _logger.LogError(ex, "Error getting stores with outstanding balance");
                 return ApiResponse<List<StoreWithBalanceDto>>.ErrorResponse("An error occurred");
-            }
-        }
-
-        public async Task<ApiResponse<List<LocationLookupDto>>> GetBarangaysAsync(string? city = null)
-        {
-            try
-            {
-                var query = _context.Stores
-                    .AsNoTracking()
-                    .Where(s => !string.IsNullOrEmpty(s.Barangay) && !string.IsNullOrEmpty(s.City));
-
-                if (!string.IsNullOrWhiteSpace(city))
-                {
-                    query = query.Where(s => s.City == city);
-                }
-
-                var barangays = await query
-                    .GroupBy(s => new { s.Barangay, s.City })
-                    .Select(g => new LocationLookupDto
-                    {
-                        Barangay = g.Key.Barangay,
-                        City = g.Key.City,
-                        StoreCount = g.Count()
-                    })
-                    .OrderBy(l => l.City)
-                    .ThenBy(l => l.Barangay)
-                    .ToListAsync();
-
-                return ApiResponse<List<LocationLookupDto>>.SuccessResponse(barangays);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting barangays");
-                return ApiResponse<List<LocationLookupDto>>.ErrorResponse("An error occurred");
-            }
-        }
-
-        public async Task<ApiResponse<List<string>>> GetCitiesAsync()
-        {
-            try
-            {
-                var cities = await _context.Stores
-                    .AsNoTracking()
-                    .Where(s => !string.IsNullOrEmpty(s.City))
-                    .Select(s => s.City)
-                    .Distinct()
-                    .OrderBy(c => c)
-                    .ToListAsync();
-
-                return ApiResponse<List<string>>.SuccessResponse(cities);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting cities");
-                return ApiResponse<List<string>>.ErrorResponse("An error occurred");
             }
         }
     }

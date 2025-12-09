@@ -81,6 +81,10 @@ namespace ASTRASystem
             builder.Services.AddScoped<IAuditLogService, AuditLogService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
 
+            //Location Services
+            builder.Services.AddScoped<ICityService, CityService>();
+            builder.Services.AddScoped<IBarangayService, BarangayService>();
+
             // Domain Services
             builder.Services.AddScoped<IDistributorService, DistributorService>();
             builder.Services.AddScoped<ICategoryService, CategoryService>();

@@ -43,8 +43,8 @@ namespace ASTRASystem.Services
                 {
                     worksheet.Cell(row, 1).Value = order.Id;
                     worksheet.Cell(row, 2).Value = order.Store?.Name ?? "";
-                    worksheet.Cell(row, 3).Value = order.Store?.Barangay ?? "";
-                    worksheet.Cell(row, 4).Value = order.Store?.City ?? "";
+                    //worksheet.Cell(row, 3).Value = order.Store?.Barangay?.Name ?? "";
+                    //worksheet.Cell(row, 4).Value = order.Store?.City ?? "";
                     worksheet.Cell(row, 5).Value = order.Status.ToString();
                     worksheet.Cell(row, 6).Value = order.Priority ? "Yes" : "No";
                     worksheet.Cell(row, 7).Value = order.Total;

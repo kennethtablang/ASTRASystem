@@ -11,11 +11,9 @@ namespace ASTRASystem.DTO.Store
         [MaxLength(250)]
         public string Name { get; set; }
 
-        [MaxLength(200)]
-        public string? Barangay { get; set; }
+        public long? BarangayId { get; set; }
 
-        [MaxLength(200)]
-        public string? City { get; set; }
+        public long? CityId { get; set; }
 
         [MaxLength(200)]
         public string? OwnerName { get; set; }

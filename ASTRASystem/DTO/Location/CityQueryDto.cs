@@ -1,10 +1,11 @@
-﻿namespace ASTRASystem.DTO.Store
+﻿namespace ASTRASystem.DTO.Location
 {
-    public class StoreQueryDto
+    public class CityQueryDto
     {
         public string? SearchTerm { get; set; }
-        public long? BarangayId { get; set; }
-        public long? CityId { get; set; }
+        public string? Province { get; set; }
+        public string? Region { get; set; }
+        public bool? IsActive { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public string SortBy { get; set; } = "Name";
