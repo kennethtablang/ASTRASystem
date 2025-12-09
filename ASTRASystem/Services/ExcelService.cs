@@ -43,8 +43,8 @@ namespace ASTRASystem.Services
                 {
                     worksheet.Cell(row, 1).Value = order.Id;
                     worksheet.Cell(row, 2).Value = order.Store?.Name ?? "";
-                    //worksheet.Cell(row, 3).Value = order.Store?.Barangay?.Name ?? "";
-                    //worksheet.Cell(row, 4).Value = order.Store?.City ?? "";
+                    worksheet.Cell(row, 3).Value = order.Store?.Barangay?.Name ?? "";
+                    worksheet.Cell(row, 4).Value = order.Store?.City?.Name ?? "";
                     worksheet.Cell(row, 5).Value = order.Status.ToString();
                     worksheet.Cell(row, 6).Value = order.Priority ? "Yes" : "No";
                     worksheet.Cell(row, 7).Value = order.Total;
@@ -134,12 +134,13 @@ namespace ASTRASystem.Services
                 worksheet.Cell(1, 4).Value = "Phone";
                 worksheet.Cell(1, 5).Value = "Barangay";
                 worksheet.Cell(1, 6).Value = "City";
-                worksheet.Cell(1, 7).Value = "Credit Limit";
-                worksheet.Cell(1, 8).Value = "Payment Method";
-                worksheet.Cell(1, 9).Value = "Created";
+                worksheet.Cell(1, 7).Value = "Province";
+                worksheet.Cell(1, 8).Value = "Credit Limit";
+                worksheet.Cell(1, 9).Value = "Payment Method";
+                worksheet.Cell(1, 10).Value = "Created";
 
                 // Style headers
-                var headerRange = worksheet.Range(1, 1, 1, 9);
+                var headerRange = worksheet.Range(1, 1, 1, 10);
                 headerRange.Style.Font.Bold = true;
                 headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
 
@@ -151,11 +152,12 @@ namespace ASTRASystem.Services
                     worksheet.Cell(row, 2).Value = store.Name;
                     worksheet.Cell(row, 3).Value = store.OwnerName ?? "";
                     worksheet.Cell(row, 4).Value = store.Phone ?? "";
-                    worksheet.Cell(row, 5).Value = store.Barangay ?? "";
-                    worksheet.Cell(row, 6).Value = store.City ?? "";
-                    worksheet.Cell(row, 7).Value = store.CreditLimit;
-                    worksheet.Cell(row, 8).Value = store.PreferredPaymentMethod ?? "";
-                    worksheet.Cell(row, 9).Value = store.CreatedAt.ToString("yyyy-MM-dd");
+                    worksheet.Cell(row, 5).Value = store.Barangay?.Name ?? "";
+                    worksheet.Cell(row, 6).Value = store.City?.Name ?? "";
+                    worksheet.Cell(row, 7).Value = store.City?.Province ?? "";
+                    worksheet.Cell(row, 8).Value = store.CreditLimit;
+                    worksheet.Cell(row, 9).Value = store.PreferredPaymentMethod ?? "";
+                    worksheet.Cell(row, 10).Value = store.CreatedAt.ToString("yyyy-MM-dd");
                     row++;
                 }
 
@@ -163,7 +165,7 @@ namespace ASTRASystem.Services
                 worksheet.Columns().AdjustToContents();
 
                 // Format currency column
-                worksheet.Column(7).Style.NumberFormat.Format = "₱#,##0.00";
+                worksheet.Column(8).Style.NumberFormat.Format = "₱#,##0.00";
 
                 using var stream = new MemoryStream();
                 workbook.SaveAs(stream);
@@ -205,7 +207,7 @@ namespace ASTRASystem.Services
                     worksheet.Cell(row, 1).Value = product.Id;
                     worksheet.Cell(row, 2).Value = product.Sku;
                     worksheet.Cell(row, 3).Value = product.Name;
-                    //worksheet.Cell(row, 4).Value = product.Category ?? "";
+                    worksheet.Cell(row, 4).Value = product.Category?.Name ?? "";
                     worksheet.Cell(row, 5).Value = product.Price;
                     worksheet.Cell(row, 6).Value = product.UnitOfMeasure ?? "";
                     worksheet.Cell(row, 7).Value = product.IsPerishable ? "Yes" : "No";

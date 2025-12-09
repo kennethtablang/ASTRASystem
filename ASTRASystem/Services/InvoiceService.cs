@@ -37,6 +37,10 @@ namespace ASTRASystem.Services
                 var invoice = await _context.Invoices
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.Barangay)
+                    .Include(i => i.Order)
+                        .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.City)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(i => i.Id == id);
 
@@ -62,6 +66,10 @@ namespace ASTRASystem.Services
                 var invoice = await _context.Invoices
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.Barangay)
+                    .Include(i => i.Order)
+                        .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.City)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(i => i.OrderId == orderId);
 
@@ -86,6 +94,9 @@ namespace ASTRASystem.Services
             {
                 var order = await _context.Orders
                     .Include(o => o.Store)
+                        .ThenInclude(s => s.Barangay)
+                    .Include(o => o.Store)
+                        .ThenInclude(s => s.City)
                     .Include(o => o.Items)
                         .ThenInclude(i => i.Product)
                     .FirstOrDefaultAsync(o => o.Id == request.OrderId);
@@ -133,6 +144,10 @@ namespace ASTRASystem.Services
                 invoice = await _context.Invoices
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.Barangay)
+                    .Include(i => i.Order)
+                        .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.City)
                     .FirstAsync(i => i.Id == invoice.Id);
 
                 var invoiceDto = _mapper.Map<InvoiceDto>(invoice);
@@ -154,6 +169,10 @@ namespace ASTRASystem.Services
                 var invoice = await _context.Invoices
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.Barangay)
+                    .Include(i => i.Order)
+                        .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.City)
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Items)
                             .ThenInclude(i => i.Product)
@@ -230,6 +249,7 @@ namespace ASTRASystem.Services
                 var storeInvoices = await _context.Invoices
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.Barangay)
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Payments)
                     .AsNoTracking()
@@ -240,14 +260,17 @@ namespace ASTRASystem.Services
 
                 foreach (var group in storeInvoices)
                 {
-                    var store = await _context.Stores.FindAsync(group.Key);
+                    var store = await _context.Stores
+                        .Include(s => s.Barangay)
+                        .FirstOrDefaultAsync(s => s.Id == group.Key);
+
                     if (store == null) continue;
 
                     var line = new ARAgingLineDto
                     {
                         StoreId = store.Id,
                         StoreName = store.Name,
-                        StoreBarangay = store.Barangay,
+                        StoreBarangay = store.Barangay?.Name,
                         CreditLimit = store.CreditLimit,
                         InvoiceCount = group.Count()
                     };
@@ -299,6 +322,10 @@ namespace ASTRASystem.Services
                 var overdueInvoices = await _context.Invoices
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.Barangay)
+                    .Include(i => i.Order)
+                        .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.City)
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Payments)
                     .Where(i => i.IssuedAt < thirtyDaysAgo)
@@ -332,6 +359,10 @@ namespace ASTRASystem.Services
                 var invoices = await _context.Invoices
                     .Include(i => i.Order)
                         .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.Barangay)
+                    .Include(i => i.Order)
+                        .ThenInclude(o => o.Store)
+                            .ThenInclude(s => s.City)
                     .Where(i => i.Order.StoreId == storeId)
                     .AsNoTracking()
                     .OrderByDescending(i => i.IssuedAt)

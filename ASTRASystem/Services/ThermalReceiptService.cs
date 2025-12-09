@@ -66,8 +66,21 @@ namespace ASTRASystem.Services
                 if (!string.IsNullOrEmpty(order.Store.OwnerName))
                     receipt.Append($"Owner: {TruncateText(order.Store.OwnerName, maxChars)}\n");
 
-                receipt.Append($"{TruncateText(order.Store, maxChars)}\n");
-                receipt.Append($"{TruncateText(order.Store.City, maxChars)}\n");
+                // Barangay and City
+                var barangayName = order.Store.Barangay?.Name ?? "";
+                var cityName = order.Store.City?.Name ?? "";
+
+                if (!string.IsNullOrEmpty(barangayName))
+                    receipt.Append($"{TruncateText(barangayName, maxChars)}\n");
+
+                if (!string.IsNullOrEmpty(cityName))
+                {
+                    var cityProvince = order.Store.City?.Province;
+                    var cityDisplay = !string.IsNullOrEmpty(cityProvince)
+                        ? $"{cityName}, {cityProvince}"
+                        : cityName;
+                    receipt.Append($"{TruncateText(cityDisplay, maxChars)}\n");
+                }
 
                 if (!string.IsNullOrEmpty(order.Store.Phone))
                     receipt.Append($"Tel: {order.Store.Phone}\n");
