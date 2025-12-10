@@ -12,18 +12,19 @@ namespace ASTRASystem.Profiles
             // Order -> OrderDto
             CreateMap<Order, OrderDto>()
                 .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store.Name))
-                .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Store.Barangay))
-                .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Store.City))
-                .ForMember(dest => dest.AgentName, opt => opt.Ignore()) // Will be populated from UserManager
+                .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Store.Barangay != null ? src.Store.Barangay.Name : null))
+                .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Store.City != null ? src.Store.City.Name : null))
+                .ForMember(dest => dest.AgentName, opt => opt.Ignore())
                 .ForMember(dest => dest.DistributorName, opt => opt.MapFrom(src => src.Distributor != null ? src.Distributor.Name : null))
                 .ForMember(dest => dest.WarehouseName, opt => opt.MapFrom(src => src.Warehouse != null ? src.Warehouse.Name : null));
 
             // Order -> OrderListItemDto
             CreateMap<Order, OrderListItemDto>()
                 .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store.Name))
-                .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Store.Barangay))
+                .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Store.Barangay != null ? src.Store.Barangay.Name : null))
+                .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Store.City != null ? src.Store.City.Name : null))
                 .ForMember(dest => dest.AgentName, opt => opt.Ignore())
-                .ForMember(dest => dest.ItemCount, opt => opt.MapFrom(src => src.Items.Count));
+                .ForMember(dest => dest.ItemCount, opt => opt.MapFrom(src => src.Items != null ? src.Items.Count : 0));
 
             // OrderItem -> OrderItemDto
             CreateMap<OrderItem, OrderItemDto>()
@@ -34,10 +35,10 @@ namespace ASTRASystem.Profiles
             // CreateOrderDto -> Order
             CreateMap<CreateOrderDto, Order>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.AgentId, opt => opt.Ignore()) 
+                .ForMember(dest => dest.AgentId, opt => opt.Ignore())
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => OrderStatus.Pending))
-                .ForMember(dest => dest.SubTotal, opt => opt.Ignore()) 
-                .ForMember(dest => dest.Tax, opt => opt.Ignore()) 
+                .ForMember(dest => dest.SubTotal, opt => opt.Ignore())
+                .ForMember(dest => dest.Tax, opt => opt.Ignore())
                 .ForMember(dest => dest.Total, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
@@ -53,7 +54,7 @@ namespace ASTRASystem.Profiles
             CreateMap<CreateOrderItemDto, OrderItem>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.OrderId, opt => opt.Ignore())
-                .ForMember(dest => dest.UnitPrice, opt => opt.Ignore()) 
+                .ForMember(dest => dest.UnitPrice, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedById, opt => opt.Ignore())

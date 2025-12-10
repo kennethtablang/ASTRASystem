@@ -44,6 +44,9 @@ namespace ASTRASystem.Services
             {
                 var order = await _context.Orders
                     .Include(o => o.Store)
+                        .ThenInclude(s => s.Barangay)
+                    .Include(o => o.Store)
+                        .ThenInclude(s => s.City)
                     .Include(o => o.Distributor)
                     .Include(o => o.Warehouse)
                     .Include(o => o.Items)
@@ -74,12 +77,17 @@ namespace ASTRASystem.Services
             }
         }
 
+
         public async Task<ApiResponse<PaginatedResponse<OrderListItemDto>>> GetOrdersAsync(OrderQueryDto query)
         {
             try
             {
                 var ordersQuery = _context.Orders
                     .Include(o => o.Store)
+                        .ThenInclude(s => s.Barangay)
+                    .Include(o => o.Store)
+                        .ThenInclude(s => s.City)
+                    .Include(o => o.Items)  // ✅ Add this to load Items for count
                     .AsNoTracking();
 
                 // Apply filters
@@ -177,6 +185,10 @@ namespace ASTRASystem.Services
                         var agent = await _userManager.FindByIdAsync(order.AgentId);
                         dto.AgentName = agent?.FullName;
                     }
+
+                    // ✅ Verify ItemCount is set correctly (should be automatic via AutoMapper)
+                    // If you want to be explicit:
+                    // dto.ItemCount = order.Items?.Count ?? 0;
 
                     orderDtos.Add(dto);
                 }
@@ -579,6 +591,9 @@ namespace ASTRASystem.Services
             {
                 var orders = await _context.Orders
                     .Include(o => o.Store)
+                        .ThenInclude(s => s.Barangay)
+                    .Include(o => o.Store)
+                        .ThenInclude(s => s.City)
                     .Include(o => o.Items)
                         .ThenInclude(i => i.Product)
                     .Where(o => o.Status == status)
@@ -614,6 +629,9 @@ namespace ASTRASystem.Services
             {
                 var query = _context.Orders
                     .Include(o => o.Store)
+                        .ThenInclude(s => s.Barangay)
+                    .Include(o => o.Store)
+                        .ThenInclude(s => s.City)
                     .Include(o => o.Items)
                         .ThenInclude(i => i.Product)
                     .Where(o => o.Status == OrderStatus.Packed)
