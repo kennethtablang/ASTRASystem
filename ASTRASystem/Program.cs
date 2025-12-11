@@ -97,6 +97,7 @@ namespace ASTRASystem
             builder.Services.AddScoped<IDeliveryService, DeliveryService>();
             builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+            builder.Services.AddScoped<IThermalReceiptService, ThermalReceiptService>();
 
             // Utility Services
             builder.Services.AddScoped<IPdfService, PdfService>();
