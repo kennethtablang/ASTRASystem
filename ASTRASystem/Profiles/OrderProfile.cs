@@ -16,7 +16,12 @@ namespace ASTRASystem.Profiles
                 .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Store.City != null ? src.Store.City.Name : null))
                 .ForMember(dest => dest.AgentName, opt => opt.Ignore())
                 .ForMember(dest => dest.DistributorName, opt => opt.MapFrom(src => src.Distributor != null ? src.Distributor.Name : null))
-                .ForMember(dest => dest.WarehouseName, opt => opt.MapFrom(src => src.Warehouse != null ? src.Warehouse.Name : null));
+                .ForMember(dest => dest.WarehouseName, opt => opt.MapFrom(src => src.Warehouse != null ? src.Warehouse.Name : null))
+                .ForMember(dest => dest.PaidByName, opt => opt.Ignore())
+                .ForMember(dest => dest.TotalPaid, opt => opt.MapFrom(src => src.TotalPaid))
+                .ForMember(dest => dest.RemainingBalance, opt => opt.MapFrom(src => src.RemainingBalance))
+                .ForMember(dest => dest.HasPartialPayment, opt => opt.MapFrom(src => src.HasPartialPayment))
+                .ForMember(dest => dest.PaymentStatus, opt => opt.Ignore()); // Calculated in service
 
             // Order -> OrderListItemDto
             CreateMap<Order, OrderListItemDto>()
@@ -24,7 +29,10 @@ namespace ASTRASystem.Profiles
                 .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Store.Barangay != null ? src.Store.Barangay.Name : null))
                 .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Store.City != null ? src.Store.City.Name : null))
                 .ForMember(dest => dest.AgentName, opt => opt.Ignore())
-                .ForMember(dest => dest.ItemCount, opt => opt.MapFrom(src => src.Items != null ? src.Items.Count : 0));
+                .ForMember(dest => dest.ItemCount, opt => opt.MapFrom(src => src.Items != null ? src.Items.Count : 0))
+                .ForMember(dest => dest.TotalPaid, opt => opt.MapFrom(src => src.TotalPaid))
+                .ForMember(dest => dest.RemainingBalance, opt => opt.MapFrom(src => src.RemainingBalance))
+                .ForMember(dest => dest.PaymentStatus, opt => opt.Ignore()); // Calculated in service
 
             // OrderItem -> OrderItemDto
             CreateMap<OrderItem, OrderItemDto>()
@@ -40,6 +48,9 @@ namespace ASTRASystem.Profiles
                 .ForMember(dest => dest.SubTotal, opt => opt.Ignore())
                 .ForMember(dest => dest.Tax, opt => opt.Ignore())
                 .ForMember(dest => dest.Total, opt => opt.Ignore())
+                .ForMember(dest => dest.IsPaid, opt => opt.MapFrom(src => false))
+                .ForMember(dest => dest.PaidAt, opt => opt.Ignore())
+                .ForMember(dest => dest.PaidById, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedById, opt => opt.Ignore())

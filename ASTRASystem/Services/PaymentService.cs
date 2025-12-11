@@ -138,6 +138,8 @@ namespace ASTRASystem.Services
 
         public async Task<ApiResponse<PaymentDto>> RecordPaymentAsync(RecordPaymentDto request, string userId)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
             try
             {
                 var order = await _context.Orders
@@ -176,6 +178,24 @@ namespace ASTRASystem.Services
                 _context.Payments.Add(payment);
                 await _context.SaveChangesAsync();
 
+                // Check if order is now fully paid
+                var newTotalPaid = totalPaid + request.Amount;
+                if (newTotalPaid >= order.Total && !order.IsPaid)
+                {
+                    order.IsPaid = true;
+                    order.PaidAt = DateTime.UtcNow;
+                    order.PaidById = userId;
+                    order.UpdatedAt = DateTime.UtcNow;
+                    order.UpdatedById = userId;
+
+                    await _context.SaveChangesAsync();
+
+                    //await _notificationService.SendNotificationAsync(
+                    //    order.AgentId,
+                    //    "OrderFullyPaid",
+                    //    $"Order #{order.Id} has been fully paid");
+                }
+
                 await _auditLogService.LogActionAsync(
                     userId,
                     "Payment recorded",
@@ -184,19 +204,26 @@ namespace ASTRASystem.Services
                         PaymentId = payment.Id,
                         OrderId = request.OrderId,
                         Amount = request.Amount,
-                        Method = request.Method.ToString()
+                        Method = request.Method.ToString(),
+                        IsFullyPaid = order.IsPaid,
+                        RemainingBalance = order.Total - newTotalPaid
                     });
+
+                await transaction.CommitAsync();
 
                 var paymentDto = _mapper.Map<PaymentDto>(payment);
                 var user = await _userManager.FindByIdAsync(userId);
                 paymentDto.RecordedByName = user?.FullName;
 
-                return ApiResponse<PaymentDto>.SuccessResponse(
-                    paymentDto,
-                    "Payment recorded successfully");
+                var message = order.IsPaid
+                    ? "Payment recorded - Order is now fully paid"
+                    : $"Payment recorded - Remaining balance: {(order.Total - newTotalPaid):C}";
+
+                return ApiResponse<PaymentDto>.SuccessResponse(paymentDto, message);
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 _logger.LogError(ex, "Error recording payment");
                 return ApiResponse<PaymentDto>.ErrorResponse("An error occurred");
             }

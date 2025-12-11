@@ -51,6 +51,7 @@ namespace ASTRASystem.Services
                     .Include(o => o.Warehouse)
                     .Include(o => o.Items)
                         .ThenInclude(i => i.Product)
+                    .Include(o => o.Payments) // Include payments
                     .AsNoTracking()
                     .FirstOrDefaultAsync(o => o.Id == id);
 
@@ -67,6 +68,19 @@ namespace ASTRASystem.Services
                     var agent = await _userManager.FindByIdAsync(order.AgentId);
                     orderDto.AgentName = agent?.FullName;
                 }
+
+                // Get paid by name
+                if (!string.IsNullOrEmpty(order.PaidById))
+                {
+                    var paidBy = await _userManager.FindByIdAsync(order.PaidById);
+                    orderDto.PaidByName = paidBy?.FullName;
+                }
+
+                // Calculate payment status
+                orderDto.TotalPaid = order.TotalPaid;
+                orderDto.RemainingBalance = order.RemainingBalance;
+                orderDto.HasPartialPayment = order.HasPartialPayment;
+                orderDto.PaymentStatus = GetPaymentStatusString(order);
 
                 return ApiResponse<OrderDto>.SuccessResponse(orderDto);
             }
@@ -87,7 +101,8 @@ namespace ASTRASystem.Services
                         .ThenInclude(s => s.Barangay)
                     .Include(o => o.Store)
                         .ThenInclude(s => s.City)
-                    .Include(o => o.Items)  // ✅ Add this to load Items for count
+                    .Include(o => o.Items)
+                    .Include(o => o.Payments)
                     .AsNoTracking();
 
                 // Apply filters
@@ -186,9 +201,10 @@ namespace ASTRASystem.Services
                         dto.AgentName = agent?.FullName;
                     }
 
-                    // ✅ Verify ItemCount is set correctly (should be automatic via AutoMapper)
-                    // If you want to be explicit:
-                    // dto.ItemCount = order.Items?.Count ?? 0;
+                    // Set payment status
+                    dto.TotalPaid = order.TotalPaid;
+                    dto.RemainingBalance = order.RemainingBalance;
+                    dto.PaymentStatus = GetPaymentStatusString(order);
 
                     orderDtos.Add(dto);
                 }
@@ -1011,6 +1027,125 @@ namespace ASTRASystem.Services
                 _logger.LogError(ex, "Error editing order");
                 return ApiResponse<OrderDto>.ErrorResponse("An error occurred while editing order");
             }
+        }
+        public async Task<ApiResponse<OrderDto>> MarkOrderAsPaidAsync(MarkOrderPaidDto request, string userId)
+        {
+            try
+            {
+                var order = await _context.Orders
+                    .Include(o => o.Payments)
+                    .FirstOrDefaultAsync(o => o.Id == request.OrderId);
+
+                if (order == null)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse("Order not found");
+                }
+
+                // Check if order is already paid
+                if (order.IsPaid)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse("Order is already marked as paid");
+                }
+
+                // Verify that total payments cover the order total
+                var totalPaid = order.TotalPaid;
+                if (totalPaid < order.Total)
+                {
+                    return ApiResponse<OrderDto>.ErrorResponse(
+                        $"Cannot mark as paid. Remaining balance: {order.RemainingBalance:C}");
+                }
+
+                order.IsPaid = true;
+                order.PaidAt = DateTime.UtcNow;
+                order.PaidById = userId;
+                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedById = userId;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Order marked as paid",
+                    new { OrderId = order.Id, TotalAmount = order.Total, Notes = request.Notes });
+
+                await _notificationService.SendNotificationAsync(
+                    order.AgentId,
+                    "OrderPaid",
+                    $"Order #{order.Id} has been marked as fully paid");
+
+                return await GetOrderByIdAsync(order.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking order as paid");
+                return ApiResponse<OrderDto>.ErrorResponse("An error occurred");
+            }
+        }
+
+        public async Task<ApiResponse<bool>> CheckAndUpdatePaymentStatusAsync(long orderId)
+        {
+            try
+            {
+                var order = await _context.Orders
+                    .Include(o => o.Payments)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+
+                if (order == null)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Order not found");
+                }
+
+                var totalPaid = order.TotalPaid;
+                var wasPaid = order.IsPaid;
+
+                // Auto-mark as paid if total payments meet or exceed order total
+                if (totalPaid >= order.Total && !order.IsPaid)
+                {
+                    order.IsPaid = true;
+                    order.PaidAt = DateTime.UtcNow;
+                    order.UpdatedAt = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+
+                    await _notificationService.SendNotificationAsync(
+                        order.AgentId,
+                        "OrderPaid",
+                        $"Order #{order.Id} has been fully paid");
+
+                    return ApiResponse<bool>.SuccessResponse(true, "Order payment status updated");
+                }
+
+                // Unmark as paid if payments were removed and total is now less
+                if (totalPaid < order.Total && order.IsPaid)
+                {
+                    order.IsPaid = false;
+                    order.PaidAt = null;
+                    order.PaidById = null;
+                    order.UpdatedAt = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+
+                    return ApiResponse<bool>.SuccessResponse(true, "Order payment status updated");
+                }
+
+                return ApiResponse<bool>.SuccessResponse(false, "No payment status change needed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking payment status");
+                return ApiResponse<bool>.ErrorResponse("An error occurred");
+            }
+        }
+
+        private string GetPaymentStatusString(Order order)
+        {
+            if (order.IsPaid || order.TotalPaid >= order.Total)
+                return "Paid";
+
+            if (order.HasPartialPayment)
+                return "Partial";
+
+            return "Unpaid";
         }
     }
 }

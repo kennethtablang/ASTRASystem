@@ -15,6 +15,13 @@ namespace ASTRASystem.DTO.Order
         public bool Priority { get; set; }
         public int ItemCount { get; set; }
         public decimal Total { get; set; }
+
+        // Payment Status Fields
+        public bool IsPaid { get; set; }
+        public decimal TotalPaid { get; set; }
+        public decimal RemainingBalance { get; set; }
+        public string PaymentStatus { get; set; } // "Unpaid", "Partial", "Paid"
+
         public DateTime CreatedAt { get; set; }
         public DateTime? ScheduledFor { get; set; }
     }

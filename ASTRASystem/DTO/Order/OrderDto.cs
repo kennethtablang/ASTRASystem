@@ -21,6 +21,17 @@ namespace ASTRASystem.DTO.Order
         public decimal SubTotal { get; set; }
         public decimal Tax { get; set; }
         public decimal Total { get; set; }
+
+        // Payment Status Fields
+        public bool IsPaid { get; set; }
+        public DateTime? PaidAt { get; set; }
+        public string? PaidById { get; set; }
+        public string? PaidByName { get; set; }
+        public decimal TotalPaid { get; set; }
+        public decimal RemainingBalance { get; set; }
+        public bool HasPartialPayment { get; set; }
+        public string PaymentStatus { get; set; } // "Unpaid", "Partial", "Paid"
+
         public List<OrderItemDto> Items { get; set; } = new();
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

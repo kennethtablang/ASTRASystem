@@ -357,5 +357,58 @@ namespace ASTRASystem.Controllers
             }
             return Ok(result);
         }
+
+        [HttpPost("{id}/mark-paid")]
+        [Authorize(Roles = "Admin,DistributorAdmin,Accountant,Dispatcher")]
+        public async Task<IActionResult> MarkOrderAsPaid(long id, [FromBody] MarkOrderPaidDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("MarkOrderAsPaid: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            if (id != request.OrderId)
+            {
+                return BadRequest(new { success = false, message = "Order ID mismatch" });
+            }
+
+            _logger.LogInformation("MarkOrderAsPaid: User {UserId} marking order {OrderId} as paid", userId, id);
+
+            var result = await _orderService.MarkOrderAsPaidAsync(request, userId);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
+        [HttpGet("{id}/payment-status")]
+        [Authorize]
+        public async Task<IActionResult> GetOrderPaymentStatus(long id)
+        {
+            var result = await _orderService.GetOrderByIdAsync(id);
+            if (!result.Success)
+            {
+                return NotFound(result);
+            }
+
+            var paymentStatus = new
+            {
+                orderId = result.Data.Id,
+                total = result.Data.Total,
+                totalPaid = result.Data.TotalPaid,
+                remainingBalance = result.Data.RemainingBalance,
+                isPaid = result.Data.IsPaid,
+                paidAt = result.Data.PaidAt,
+                paidByName = result.Data.PaidByName,
+                paymentStatus = result.Data.PaymentStatus,
+                hasPartialPayment = result.Data.HasPartialPayment
+            };
+
+            return Ok(new { success = true, data = paymentStatus });
+        }
     }
 }

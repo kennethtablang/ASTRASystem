@@ -11,23 +11,13 @@ namespace ASTRASystem.Models
         [ForeignKey(nameof(StoreId))]
         public Store Store { get; set; }
 
-        /// <summary>
-        /// Agent who created the order (ApplicationUser.Id as string if you use string keys).
-        /// If you use numeric keys for Identity, change type accordingly.
-        /// </summary>
         [MaxLength(450)]
         public string AgentId { get; set; }
 
-        /// <summary>
-        /// Distributor responsible for fulfilling this order.
-        /// </summary>
         public long? DistributorId { get; set; }
         [ForeignKey(nameof(DistributorId))]
         public Distributor Distributor { get; set; }
 
-        /// <summary>
-        /// Warehouse assigned for fulfilment (may be null until assigned).
-        /// </summary>
         public long? WarehouseId { get; set; }
         [ForeignKey(nameof(WarehouseId))]
         public Warehouse Warehouse { get; set; }
@@ -46,6 +36,41 @@ namespace ASTRASystem.Models
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal Total { get; set; }
+
+        // NEW: Payment Status Fields
+        /// <summary>
+        /// Indicates if the order has been fully paid
+        /// </summary>
+        public bool IsPaid { get; set; } = false;
+
+        /// <summary>
+        /// Date when the order was fully paid
+        /// </summary>
+        public DateTime? PaidAt { get; set; }
+
+        /// <summary>
+        /// User who marked the order as paid
+        /// </summary>
+        [MaxLength(450)]
+        public string? PaidById { get; set; }
+
+        /// <summary>
+        /// Total amount paid (calculated from Payments collection)
+        /// </summary>
+        [NotMapped]
+        public decimal TotalPaid => Payments?.Sum(p => p.Amount) ?? 0;
+
+        /// <summary>
+        /// Remaining balance to be paid
+        /// </summary>
+        [NotMapped]
+        public decimal RemainingBalance => Total - TotalPaid;
+
+        /// <summary>
+        /// Whether the order has partial payment
+        /// </summary>
+        [NotMapped]
+        public bool HasPartialPayment => TotalPaid > 0 && TotalPaid < Total;
 
         // Navigation
         public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();

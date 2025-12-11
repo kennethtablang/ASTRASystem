@@ -25,5 +25,7 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<OrderDto>> MarkOrderDeliveredAsync(long orderId, string userId, string? notes);
         Task<ApiResponse<OrderDto>> MarkOrderReturnedAsync(long orderId, string userId, string reason);
         Task<ApiResponse<OrderDto>> EditOrderAsync(long orderId, UpdateOrderDto request, string userId);
+        Task<ApiResponse<OrderDto>> MarkOrderAsPaidAsync(MarkOrderPaidDto request, string userId);
+        Task<ApiResponse<bool>> CheckAndUpdatePaymentStatusAsync(long orderId);
     }
 }
