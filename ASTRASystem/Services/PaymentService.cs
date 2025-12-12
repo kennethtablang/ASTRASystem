@@ -93,6 +93,11 @@ namespace ASTRASystem.Services
                     paymentsQuery = paymentsQuery.Where(p => p.RecordedAt <= query.RecordedTo.Value);
                 }
 
+                if (query.IsReconciled.HasValue)
+                {
+                    paymentsQuery = paymentsQuery.Where(p => p.IsReconciled == query.IsReconciled.Value);
+                }
+
                 // Apply sorting
                 paymentsQuery = query.SortBy.ToLower() switch
                 {
@@ -110,18 +115,26 @@ namespace ASTRASystem.Services
                     .Take(query.PageSize)
                     .ToListAsync();
 
-                var paymentDtos = new List<PaymentDto>();
-                foreach (var payment in payments)
+                var paymentDtos = _mapper.Map<List<PaymentDto>>(payments);
+                
+                // Optimized name lookup
+                var userIds = payments.Select(p => p.RecordedById).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+                if (userIds.Any())
                 {
-                    var dto = _mapper.Map<PaymentDto>(payment);
+                    var users = await _userManager.Users
+                        .Where(u => userIds.Contains(u.Id))
+                        .Select(u => new { u.Id, u.FullName })
+                        .ToListAsync();
+                    
+                    var userMap = users.ToDictionary(u => u.Id, u => u.FullName);
 
-                    if (!string.IsNullOrEmpty(payment.RecordedById))
+                    foreach (var dto in paymentDtos)
                     {
-                        var user = await _userManager.FindByIdAsync(payment.RecordedById);
-                        dto.RecordedByName = user?.FullName;
+                        if (!string.IsNullOrEmpty(dto.RecordedById) && userMap.TryGetValue(dto.RecordedById, out var name))
+                        {
+                            dto.RecordedByName = name;
+                        }
                     }
-
-                    paymentDtos.Add(dto);
                 }
 
                 var paginatedResponse = new PaginatedResponse<PaymentDto>(
