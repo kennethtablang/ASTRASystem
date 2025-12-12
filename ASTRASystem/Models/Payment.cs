@@ -22,5 +22,15 @@ namespace ASTRASystem.Models
         public string RecordedById { get; set; }
 
         public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
+
+        // Reconciliation / Remittance fields
+        public bool IsReconciled { get; set; }
+        public DateTime? ReconciledAt { get; set; }
+        
+        [MaxLength(450)]
+        public string? ReconciledById { get; set; }
+
+        [MaxLength(500)]
+        public string? ReconciliationNotes { get; set; }
     }
 }

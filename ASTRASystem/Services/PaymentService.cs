@@ -272,8 +272,18 @@ namespace ASTRASystem.Services
                     return ApiResponse<bool>.ErrorResponse("Payment not found");
                 }
 
-                // In a real system, you'd have a reconciliation status field
-                // For now, we'll just log the reconciliation
+                if (payment.IsReconciled)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Payment is already reconciled");
+                }
+
+                payment.IsReconciled = true;
+                payment.ReconciledAt = DateTime.UtcNow;
+                payment.ReconciledById = userId;
+                payment.ReconciliationNotes = request.Notes;
+
+                await _context.SaveChangesAsync();
+
                 await _auditLogService.LogActionAsync(
                     userId,
                     "Payment reconciled",
@@ -347,12 +357,8 @@ namespace ASTRASystem.Services
         {
             try
             {
-                // In a real system, you'd have a reconciliation status field
-                // For this implementation, we'll return all payments from the last 30 days
-                var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
-
                 var payments = await _context.Payments
-                    .Where(p => p.RecordedAt >= thirtyDaysAgo)
+                    .Where(p => !p.IsReconciled)
                     .AsNoTracking()
                     .OrderByDescending(p => p.RecordedAt)
                     .ToListAsync();
@@ -367,8 +373,28 @@ namespace ASTRASystem.Services
                     RecordedAt = p.RecordedAt,
                     IsReconciled = false,
                     ReconciledAt = null,
-                    ReconciledById = null
+                    ReconciledById = null,
+                    RecordedById = p.RecordedById
                 }).ToList();
+
+                var userIds = dtos.Select(d => d.RecordedById).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+                if (userIds.Any())
+                {
+                    var users = await _userManager.Users
+                        .Where(u => userIds.Contains(u.Id))
+                        .Select(u => new { u.Id, u.FullName })
+                        .ToListAsync();
+                    
+                    var userMap = users.ToDictionary(u => u.Id, u => u.FullName);
+
+                    foreach (var dto in dtos)
+                    {
+                        if (!string.IsNullOrEmpty(dto.RecordedById) && userMap.TryGetValue(dto.RecordedById, out var name))
+                        {
+                            dto.RecordedByName = name;
+                        }
+                    }
+                }
 
                 return ApiResponse<List<PaymentReconciliationDto>>.SuccessResponse(dtos);
             }
