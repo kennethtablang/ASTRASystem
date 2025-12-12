@@ -26,7 +26,13 @@ namespace ASTRASystem.Profiles
                 .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Order.Store.Name))
                 .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Order.Store.Barangay))
                 .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Order.Store.City))
-                .ForMember(dest => dest.OrderTotal, opt => opt.MapFrom(src => src.Order.Total));
+                .ForMember(dest => dest.OrderTotal, opt => opt.MapFrom(src => src.Order.Total))
+                .ForMember(dest => dest.IsPaid, opt => opt.MapFrom(src => src.Order.IsPaid))
+                .ForMember(dest => dest.TotalPaid, opt => opt.MapFrom(src => src.Order.TotalPaid))
+                .ForMember(dest => dest.RemainingBalance, opt => opt.MapFrom(src => src.Order.RemainingBalance))
+                .ForMember(dest => dest.PaymentStatus, opt => opt.MapFrom(src => 
+                    src.Order.IsPaid ? "Paid" : 
+                    src.Order.TotalPaid > 0 ? "Partial" : "Unpaid"));
 
             // CreateTripDto -> Trip
             CreateMap<CreateTripDto, Trip>()

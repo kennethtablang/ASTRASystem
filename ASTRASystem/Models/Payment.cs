@@ -16,7 +16,7 @@ namespace ASTRASystem.Models
         public PaymentMethod Method { get; set; }
 
         [MaxLength(200)]
-        public string Reference { get; set; }
+        public string? Reference { get; set; }
 
         [MaxLength(450)]
         public string RecordedById { get; set; }

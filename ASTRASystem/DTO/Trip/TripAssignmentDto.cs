@@ -12,5 +12,11 @@ namespace ASTRASystem.DTO.Trip
         public int SequenceNo { get; set; }
         public OrderStatus Status { get; set; }
         public decimal OrderTotal { get; set; }
+        
+        // Payment status
+        public bool IsPaid { get; set; }
+        public decimal TotalPaid { get; set; }
+        public decimal RemainingBalance { get; set; }
+        public string PaymentStatus { get; set; } // "Unpaid", "Partial", "Paid"
     }
 }

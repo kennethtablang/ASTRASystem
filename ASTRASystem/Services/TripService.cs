@@ -48,6 +48,9 @@ namespace ASTRASystem.Services
                     .Include(t => t.Assignments)
                         .ThenInclude(a => a.Order)
                             .ThenInclude(o => o.Store)
+                    .Include(t => t.Assignments)
+                        .ThenInclude(a => a.Order)
+                            .ThenInclude(o => o.Payments)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(t => t.Id == id);
 
@@ -616,6 +619,9 @@ namespace ASTRASystem.Services
                     .Include(t => t.Assignments)
                         .ThenInclude(a => a.Order)
                             .ThenInclude(o => o.Store)
+                    .Include(t => t.Assignments)
+                        .ThenInclude(a => a.Order)
+                            .ThenInclude(o => o.Payments)
                     .Where(t => t.Status == TripStatus.Started || t.Status == TripStatus.InProgress)
                     .AsNoTracking();
 
