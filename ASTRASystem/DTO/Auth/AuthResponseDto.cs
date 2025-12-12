@@ -13,5 +13,6 @@
         public string? ApprovalMessage { get; set; }
         public long? DistributorId { get; set; }
         public long? WarehouseId { get; set; }
+        public bool TwoFactorEnabled { get; set; }
     }
 }

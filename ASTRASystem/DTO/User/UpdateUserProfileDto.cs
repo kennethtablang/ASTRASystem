@@ -15,6 +15,10 @@ namespace ASTRASystem.DTO.User
         [MaxLength(150)]
         public string LastName { get; set; }
 
+        [EmailAddress]
+        [MaxLength(150)]
+        public string? Email { get; set; }
+
         [Phone]
         public string? PhoneNumber { get; set; }
 
