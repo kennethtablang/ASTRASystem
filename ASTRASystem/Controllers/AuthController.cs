@@ -196,25 +196,37 @@ namespace ASTRASystem.Controllers
         /// </summary>
         [Authorize]
         [HttpGet("me")]
-        public IActionResult GetCurrentUser()
+        public async Task<IActionResult> GetCurrentUser()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var email = User.FindFirst(ClaimTypes.Email)?.Value;
-            var role = User.FindFirst(ClaimTypes.Role)?.Value;
-            var fullName = User.FindFirst("FullName")?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            return Ok(new
-            {
-                success = true,
-                data = new
-                {
-                    userId,
-                    email,
-                    role,
-                    fullName
-                }
-            });
+            var result = await _authService.GetCurrentUserAsync(userId);
+            if (result.Success) return Ok(result);
+
+            return BadRequest(result);
         }
+
+        /// <summary>
+        /// Enable or disable two-factor authentication
+        /// </summary>
+        [Authorize]
+        [HttpPost("2fa/status")]
+        public async Task<IActionResult> SetTwoFactorStatus([FromBody] SetTwoFactorStatusDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var result = await _authService.SetTwoFactorEnabledAsync(userId, request.Enabled);
+
+            if (result.Success) return Ok(result);
+            return BadRequest(result);
+        }
+    }
+
+    public class SetTwoFactorStatusDto
+    {
+        public bool Enabled { get; set; }
     }
 
     // Simple DTO for resend confirmation
