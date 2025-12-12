@@ -436,5 +436,62 @@ namespace ASTRASystem.Services
             var hash = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hash);
         }
+
+        public async Task<ApiResponse<bool>> SetTwoFactorEnabledAsync(string userId, bool enabled)
+        {
+            try
+            {
+                var user = await _userManager.FindByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<bool>.ErrorResponse("User not found");
+                }
+
+                var result = await _userManager.SetTwoFactorEnabledAsync(user, enabled);
+                if (!result.Succeeded)
+                {
+                    return ApiResponse<bool>.ErrorResponse(
+                        "Failed to update two-factor status",
+                        result.Errors.Select(e => e.Description).ToList());
+                }
+
+                await _auditLogService.LogActionAsync(user.Id, $"Two-factor authentication {(enabled ? "enabled" : "disabled")}", null);
+
+                return ApiResponse<bool>.SuccessResponse(true, $"Two-factor authentication {(enabled ? "enabled" : "disabled")} successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting two-factor status");
+                return ApiResponse<bool>.ErrorResponse("An error occurred");
+            }
+        }
+        public async Task<ApiResponse<AuthResponseDto>> GetCurrentUserAsync(string userId)
+        {
+            try
+            {
+                var user = await _userManager.FindByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<AuthResponseDto>.ErrorResponse("User not found");
+                }
+
+                var roles = await _userManager.GetRolesAsync(user);
+                var role = roles.FirstOrDefault() ?? "User";
+
+                // Map to AuthResponseDto
+                var response = _mapper.Map<AuthResponseDto>(user);
+                response.Role = role;
+                response.AccessToken = ""; // Not needed for profile fetch user info
+                response.RefreshToken = ""; 
+                response.TwoFactorEnabled = user.TwoFactorEnabled;
+
+                return ApiResponse<AuthResponseDto>.SuccessResponse(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting current user");
+                return ApiResponse<AuthResponseDto>.ErrorResponse("An error occurred");
+            }
+        }
     }
 }

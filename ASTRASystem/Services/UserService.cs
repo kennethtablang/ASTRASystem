@@ -188,6 +188,34 @@ namespace ASTRASystem.Services
                     return ApiResponse<UserDto>.ErrorResponse("User not found");
                 }
 
+                if (!string.IsNullOrEmpty(request.Email) && request.Email.ToUpper() != user.NormalizedEmail)
+                {
+                    var existingUser = await _userManager.FindByEmailAsync(request.Email);
+                    if (existingUser != null && existingUser.Id != user.Id)
+                    {
+                        return ApiResponse<UserDto>.ErrorResponse("Email is already registered by another user");
+                    }
+
+                    var setEmailResult = await _userManager.SetEmailAsync(user, request.Email);
+                    if (!setEmailResult.Succeeded)
+                    {
+                        return ApiResponse<UserDto>.ErrorResponse(
+                            "Failed to update email",
+                            setEmailResult.Errors.Select(e => e.Description).ToList());
+                    }
+
+                    // Update username to match email if they were same
+                    if (user.UserName.ToUpper() == user.NormalizedEmail) // Logic: if old username was old email
+                    {
+                        await _userManager.SetUserNameAsync(user, request.Email);
+                    }
+                    else
+                    {
+                         // Or force update username?
+                         await _userManager.SetUserNameAsync(user, request.Email);
+                    }
+                }
+
                 _mapper.Map(request, user);
                 var result = await _userManager.UpdateAsync(user);
 

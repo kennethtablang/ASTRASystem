@@ -17,6 +17,8 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<bool>> ConfirmEmailAsync(ConfirmEmailDto request);
         Task<ApiResponse<bool>> ResendConfirmationEmailAsync(string email);
         Task<ApiResponse<bool>> LogoutAsync(string userId);
+        Task<ApiResponse<bool>> SetTwoFactorEnabledAsync(string userId, bool enabled);
+        Task<ApiResponse<AuthResponseDto>> GetCurrentUserAsync(string userId);
     }
     public interface ITokenService
     {
