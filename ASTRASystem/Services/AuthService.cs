@@ -17,6 +17,7 @@ namespace ASTRASystem.Services
         private readonly IAuditLogService _auditLogService;
         private readonly IMapper _mapper;
         private readonly ILogger<AuthService> _logger;
+        private readonly IConfiguration _configuration;
 
         public AuthService(
             UserManager<ApplicationUser> userManager,
@@ -25,7 +26,8 @@ namespace ASTRASystem.Services
             IEmailService emailService,
             IAuditLogService auditLogService,
             IMapper mapper,
-            ILogger<AuthService> logger)
+            ILogger<AuthService> logger,
+            IConfiguration configuration)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -34,6 +36,7 @@ namespace ASTRASystem.Services
             _auditLogService = auditLogService;
             _mapper = mapper;
             _logger = logger;
+            _configuration = configuration;
         }
 
         public async Task<ApiResponse<AuthResponseDto>> RegisterAsync(RegisterRequestDto request)
@@ -279,13 +282,15 @@ namespace ASTRASystem.Services
                 var user = await _userManager.FindByEmailAsync(request.Email);
                 if (user == null)
                 {
-                    // Don't reveal if user exists
-                    return ApiResponse<bool>.SuccessResponse(true, "If the email exists, a reset link has been sent");
+                    return ApiResponse<bool>.ErrorResponse("Email address is not registered");
                 }
 
                 var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-                // In production, send email with reset link
-                // await _emailService.SendPasswordResetEmailAsync(user, resetLink);
+                
+                var clientUrl = _configuration["ClientUrl"] ?? "http://localhost:5173";
+                var resetLink = $"{clientUrl}/reset-password?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(user.Email)}";
+
+                await _emailService.SendPasswordResetEmailAsync(user, resetLink);
 
                 await _auditLogService.LogActionAsync(user.Id, "Password reset requested", null);
 

@@ -36,7 +36,7 @@ namespace ASTRASystem.Services
                 {
                     UserId = userId,
                     Action = action,
-                    Meta = metadata != null ? JsonSerializer.Serialize(metadata) : null,
+                    Meta = metadata != null ? JsonSerializer.Serialize(metadata) : string.Empty,
                     OccurredAt = DateTime.UtcNow,
                     CreatedById = userId,
                     UpdatedById = userId
