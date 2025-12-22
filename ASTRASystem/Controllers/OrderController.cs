@@ -33,6 +33,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,Agent,Dispatcher")]
         public async Task<IActionResult> GetOrders([FromQuery] OrderQueryDto query)
         {
             var result = await _orderService.GetOrdersAsync(query);
@@ -173,7 +174,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet("summary")]
-        [Authorize(Roles = "Admin,DistributorAdmin,Accountant")]
+        [Authorize(Roles = "Admin,DistributorAdmin,Accountant,Agent,Dispatcher")]
         public async Task<IActionResult> GetOrderSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to)
         {
             var result = await _orderService.GetOrderSummaryAsync(from, to);
