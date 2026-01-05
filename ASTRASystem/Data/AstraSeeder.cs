@@ -130,15 +130,16 @@ namespace ASTRASystem.Data
                 logger?.LogInformation("Seeded Warehouse: {name}", warehouse.Name);
             }
 
-            // 5) Seed Categories
+            // 5) Seed Categories (10 categories)
+            List<Category> categories = null;
             if (!await db.Categories.AnyAsync())
             {
-                var categories = new[]
+                categories = new List<Category>
                 {
                     new Category
                     {
                         Name = "Beverages",
-                        Description = "Drinks and beverages",
+                        Description = "Drinks, juices, and beverages",
                         Color = "#3B82F6",
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
@@ -149,8 +150,96 @@ namespace ASTRASystem.Data
                     new Category
                     {
                         Name = "Snacks",
-                        Description = "Snacks and chips",
+                        Description = "Chips, crackers, and snacks",
                         Color = "#F59E0B",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Category
+                    {
+                        Name = "Canned Goods",
+                        Description = "Canned foods and preserved items",
+                        Color = "#EF4444",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Category
+                    {
+                        Name = "Dairy Products",
+                        Description = "Milk, cheese, and dairy items",
+                        Color = "#8B5CF6",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Category
+                    {
+                        Name = "Household Items",
+                        Description = "Cleaning supplies and household goods",
+                        Color = "#10B981",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Category
+                    {
+                        Name = "Personal Care",
+                        Description = "Hygiene and personal care products",
+                        Color = "#EC4899",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Category
+                    {
+                        Name = "Condiments & Sauces",
+                        Description = "Sauces, seasonings, and condiments",
+                        Color = "#F97316",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Category
+                    {
+                        Name = "Frozen Foods",
+                        Description = "Frozen products and ice cream",
+                        Color = "#06B6D4",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Category
+                    {
+                        Name = "Bakery & Bread",
+                        Description = "Bread, pastries, and baked goods",
+                        Color = "#FBBF24",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    },
+                    new Category
+                    {
+                        Name = "Confectionery",
+                        Description = "Candies, chocolates, and sweets",
+                        Color = "#A855F7",
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow,
@@ -161,47 +250,266 @@ namespace ASTRASystem.Data
 
                 db.Categories.AddRange(categories);
                 await db.SaveChangesAsync();
-                logger?.LogInformation("Seeded {count} categories", categories.Length);
+                logger?.LogInformation("Seeded {count} categories", categories.Count);
+            }
+            else
+            {
+                // Load existing categories for product seeding
+                categories = await db.Categories.ToListAsync();
             }
 
-            // 6) Seed Cities and Barangays
-            City meycauayanCity = null;
-            Barangay sanIsidroBarangay = null;
+            // 5.5) Seed Products (100 products) and Inventory
+            if (!await db.Products.AnyAsync() && categories != null && categories.Any())
+            {
+                var random = new Random(42); // Fixed seed for reproducible data
+                var products = new List<Product>();
+                int skuCounter = 1000;
+
+                // Helper function to create products
+                void AddProducts(string categoryName, params (string name, decimal price, string unit, bool perishable)[] items)
+                {
+                    var category = categories.FirstOrDefault(c => c.Name == categoryName);
+                    if (category == null) return;
+
+                    foreach (var item in items)
+                    {
+                        skuCounter++;
+                        products.Add(new Product
+                        {
+                            Name = item.name,
+                            Sku = $"SKU-{skuCounter:D6}",
+                            Barcode = $"8{random.Next(100000000, 999999999):D11}",
+                            CategoryId = category.Id,
+                            Price = item.price,
+                            UnitOfMeasure = item.unit,
+                            IsPerishable = item.perishable,
+                            IsBarcoded = true,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow,
+                            CreatedById = adminUser.Id,
+                            UpdatedById = adminUser.Id
+                        });
+                    }
+                }
+
+                // BEVERAGES (15 products)
+                AddProducts("Beverages",
+                    ("Coca-Cola 1.5L", 45m, "bottle", false),
+                    ("Pepsi 1.5L", 43m, "bottle", false),
+                    ("Sprite 1.5L", 43m, "bottle", false),
+                    ("Royal 1.5L", 40m, "bottle", false),
+                    ("C2 Green Tea 1L", 25m, "bottle", false),
+                    ("Nestea Iced Tea 1L", 25m, "bottle", false),
+                    ("Zest-O Orange 200ml", 12m, "pack", false),
+                    ("Tang Orange 25g", 8m, "sachet", false),
+                    ("Nescafe 3-in-1 Original", 7m, "sachet", false),
+                    ("Great Taste White Coffee", 7m, "sachet", false),
+                    ("Milo Powder 33g", 10m, "sachet", false),
+                    ("Bear Brand 1L", 85m, "bottle", true),
+                    ("Energy Drink 250ml", 35m, "can", false),
+                    ("Bottled Water 500ml", 15m, "bottle", false),
+                    ("Pineapple Juice 1L", 55m, "bottle", false)
+                );
+
+                // SNACKS (15 products)
+                AddProducts("Snacks",
+                    ("Chippy BBQ 110g", 25m, "pack", false),
+                    ("Piattos Cheese 85g", 28m, "pack", false),
+                    ("Nova Barbecue 78g", 22m, "pack", false),
+                    ("Oishi Prawn Crackers 90g", 20m, "pack", false),
+                    ("Roller Coaster 85g", 18m, "pack", false),
+                    ("Clover Chips Cheese 85g", 20m, "pack", false),
+                    ("Jack n Jill Peanuts 100g", 35m, "pack", false),
+                    ("Boy Bawang Cornick 100g", 30m, "pack", false),
+                    ("Cheese Curls 75g", 22m, "pack", false),
+                    ("Potato Chips Salt 60g", 25m, "pack", false),
+                    ("Crackers Skyflakes 10s", 28m, "pack", false),
+                    ("Fita 10s", 25m, "pack", false),
+                    ("Cream-O Vanilla 10s", 30m, "pack", false),
+                    ("Rebisco Choco Mallows", 35m, "pack", false),
+                    ("Pretzels 100g", 40m, "pack", false)
+                );
+
+                // CANNED GOODS (12 products)
+                AddProducts("Canned Goods",
+                    ("Century Tuna Flakes 155g", 38m, "can", false),
+                    ("555 Sardines 155g", 22m, "can", false),
+                    ("Mega Sardines 155g", 20m, "can", false),
+                    ("Ligo Sardines 155g", 24m, "can", false),
+                    ("Argentina Corned Beef 175g", 45m, "can", false),
+                    ("Purefoods Corned Beef 150g", 42m, "can", false),
+                    ("Spam Classic 340g", 165m, "can", false),
+                    ("Libby's Vienna Sausage 130g", 28m, "can", false),
+                    ("CDO Liver Spread 85g", 18m, "can", false),
+                    ("Del Monte Tomato Sauce 250g", 25m, "can", false),
+                    ("Jolly Mushroom 400g", 55m, "can", false),
+                    ("Young's Town Sardines 155g", 22m, "can", false)
+                );
+
+                // DAIRY PRODUCTS (8 products)
+                AddProducts("Dairy Products",
+                    ("Alaska Evaporated Milk 370ml", 35m, "can", true),
+                    ("Carnation Condensed Milk 300ml", 40m, "can", true),
+                    ("Nestle Fresh Milk 1L", 95m, "bottle", true),
+                    ("Eden Cheese 165g", 75m, "bar", true),
+                    ("Nestle All Purpose Cream 250ml", 42m, "pack", true),
+                    ("Anchor Milk Powder 900g", 385m, "pack", false),
+                    ("Yakult 5-pack", 45m, "pack", true),
+                    ("Yogurt Drink 180ml", 25m, "bottle", true)
+                );
+
+                // HOUSEHOLD ITEMS (10 products)
+                AddProducts("Household Items",
+                    ("Tide Powder 120g", 18m, "pack", false),
+                    ("Ariel Powder 120g", 20m, "pack", false),
+                    ("Surf Powder 120g", 15m, "pack", false),
+                    ("Downy Concentrate 45ml", 8m, "sachet", false),
+                    ("Joy Dishwashing Liquid 250ml", 35m, "bottle", false),
+                    ("Domex Bleach 500ml", 38m, "bottle", false),
+                    ("Ajax Cleanser 350g", 28m, "bottle", false),
+                    ("Zonrox Bleach 500ml", 40m, "bottle", false),
+                    ("Baygon Spray 300ml", 95m, "can", false),
+                    ("Lysol Disinfectant 225ml", 88m, "bottle", false)
+                );
+
+                // PERSONAL CARE (12 products)
+                AddProducts("Personal Care",
+                    ("Safeguard Bar Soap 135g", 35m, "bar", false),
+                    ("Palmolive Bar Soap 135g", 32m, "bar", false),
+                    ("Colgate Toothpaste 150g", 58m, "tube", false),
+                    ("Close-Up Toothpaste 150g", 55m, "tube", false),
+                    ("Oral-B Toothbrush", 45m, "piece", false),
+                    ("Head & Shoulders Shampoo 170ml", 88m, "bottle", false),
+                    ("Pantene Shampoo 170ml", 85m, "bottle", false),
+                    ("Cream Silk Conditioner 180ml", 75m, "sachet", false),
+                    ("Dove Body Wash 200ml", 125m, "bottle", false),
+                    ("Rexona Deo Roll-On 40ml", 65m, "bottle", false),
+                    ("Whisper Sanitary Napkin 8s", 45m, "pack", false),
+                    ("Johnson's Baby Powder 100g", 68m, "bottle", false)
+                );
+
+                // CONDIMENTS & SAUCES (10 products)
+                AddProducts("Condiments & Sauces",
+                    ("Silver Swan Soy Sauce 385ml", 28m, "bottle", false),
+                    ("Datu Puti Vinegar 385ml", 18m, "bottle", false),
+                    ("UFC Catsup 320g", 42m, "bottle", false),
+                    ("Mama Sita's Oyster Sauce 405g", 58m, "bottle", false),
+                    ("Maggi Magic Sarap 8g", 5m, "sachet", false),
+                    ("Knorr Pork Cube 60g", 25m, "pack", false),
+                    ("McCormick Seasoning Mix", 15m, "pack", false),
+                    ("Datu Puti Soy Sauce 1L", 65m, "bottle", false),
+                    ("Papa Catsup 550g", 55m, "bottle", false),
+                    ("Lorins Chili Garlic 210g", 48m, "bottle", false)
+                );
+
+                // FROZEN FOODS (8 products)
+                AddProducts("Frozen Foods",
+                    ("Tender Juicy Hotdog 1kg", 185m, "pack", true),
+                    ("CDO Chicken Franks 1kg", 165m, "pack", true),
+                    ("Purefoods Corned Beef 175g", 48m, "can", false),
+                    ("Magnolia Chicken 1kg", 195m, "pack", true),
+                    ("Selecta Ice Cream 1.5L", 245m, "tub", true),
+                    ("Nestlé Ice Cream 1.5L", 235m, "tub", true),
+                    ("Fish Fillet 500g", 145m, "pack", true),
+                    ("Frozen Vegetables Mix 400g", 85m, "pack", true)
+                );
+
+                // BAKERY & BREAD (5 products)
+                AddProducts("Bakery & Bread",
+                    ("Gardenia Classic White Bread", 52m, "loaf", true),
+                    ("Gardenia Wheat Bread", 55m, "loaf", true),
+                    ("Tasty Bread Loaf", 45m, "loaf", true),
+                    ("Pandesal 10pcs", 35m, "pack", true),
+                    ("Ensaymada 6pcs", 65m, "pack", true)
+                );
+
+                // CONFECTIONERY (5 products)
+                AddProducts("Confectionery",
+                    ("Choc-Nut 24pcs", 48m, "pack", false),
+                    ("Goya Chocolate 10s", 25m, "pack", false),
+                    ("Storck Candy 125g", 58m, "pack", false),
+                    ("Mentos Mint Roll", 15m, "roll", false),
+                    ("Chupa Chups 12s", 72m, "pack", false)
+                );
+
+                // Add all products to database
+                db.Products.AddRange(products);
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Seeded {count} products across {categories} categories", 
+                    products.Count, categories.Count);
+
+                // Create Inventory for all products in the warehouse
+                if (warehouse != null)
+                {
+                    var inventoryRecords = new List<Inventory>();
+                    foreach (var product in products)
+                    {
+                        // Random quantity between 50 and 500
+                        var quantity = random.Next(50, 501);
+                        var reorderLevel = random.Next(20, 51);
+
+                        inventoryRecords.Add(new Inventory
+                        {
+                            WarehouseId = warehouse.Id,
+                            ProductId = product.Id,
+                            StockLevel = quantity,
+                            ReorderLevel = reorderLevel,
+                            LastRestocked = DateTime.UtcNow.AddDays(-random.Next(1, 30)),
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow,
+                            CreatedById = adminUser.Id,
+                            UpdatedById = adminUser.Id
+                        });
+                    }
+
+                    db.Inventories.AddRange(inventoryRecords);
+                    await db.SaveChangesAsync();
+                    logger?.LogInformation("Seeded inventory for {count} products in warehouse {warehouse}",
+                        inventoryRecords.Count, warehouse.Name);
+                }
+            }
+
+            // 6) Seed Cities and Barangays (Pangasinan)
+            City alaminosCity = null;
+            Barangay poblacionBarangay = null;
 
             if (!await db.Cities.AnyAsync())
             {
-                // Seed Meycauayan City
-                meycauayanCity = new City
+                // Seed Alaminos City
+                alaminosCity = new City
                 {
-                    Name = "Meycauayan",
-                    Province = "Bulacan",
-                    Region = "Central Luzon",
+                    Name = "Alaminos",
+                    Province = "Pangasinan",
+                    Region = "Ilocos Region",
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
                     CreatedById = adminUser.Id,
                     UpdatedById = adminUser.Id
                 };
-                db.Cities.Add(meycauayanCity);
+                db.Cities.Add(alaminosCity);
                 await db.SaveChangesAsync();
-                logger?.LogInformation("Seeded City: {name}", meycauayanCity.Name);
+                logger?.LogInformation("Seeded City: {name}", alaminosCity.Name);
 
-                // Seed Barangays for Meycauayan
-                var meycauayanBarangays = new[]
+                // Seed Barangays for Alaminos City (39 barangays)
+                var alaminosBarangays = new[]
                 {
-                    "Bagbaguin", "Bahay Pare", "Bancal", "Banga", "Bayugo",
-                    "Caingin", "Calvario", "Camalig", "Hulo", "Iba",
-                    "Langka", "Lawa", "Libtong", "Lipas", "Longos",
-                    "Malhacan", "Pajo", "Pandayan", "Pantoc", "Perez",
-                    "Poblacion", "Saluysoy", "San Isidro", "Tugatog", "Ubihan"
+                    "Alos", "Amandiego", "Amangbangan", "Balangobong", "Balayang",
+                    "Baleyadaan", "Bisocol", "Bolaney", "Bued", "Cabatuan",
+                    "Cayucay", "Dulacac", "Inerangan", "Landoc", "Linmansangan",
+                    "Lucap", "Maawi", "Macatiw", "Magsaysay", "Mona",
+                    "Palamis", "Pandan", "Pangapisan", "Poblacion", "Pocalpocal",
+                    "Pogo", "Polo", "Quibuar", "Sabangan", "San Antonio",
+                    "San Jose", "San Roque", "San Vicente", "Santa Maria", "Tanaytay",
+                    "Tangcarang", "Tawintawin", "Telbang", "Victoria"
                 };
 
-                foreach (var barangayName in meycauayanBarangays)
+                foreach (var barangayName in alaminosBarangays)
                 {
                     var barangay = new Barangay
                     {
                         Name = barangayName,
-                        CityId = meycauayanCity.Id,
+                        CityId = alaminosCity.Id,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow,
@@ -210,64 +518,218 @@ namespace ASTRASystem.Data
                     };
                     db.Barangays.Add(barangay);
 
-                    if (barangayName == "San Isidro")
+                    if (barangayName == "Poblacion")
                     {
-                        sanIsidroBarangay = barangay;
+                        poblacionBarangay = barangay;
                     }
                 }
                 await db.SaveChangesAsync();
-                logger?.LogInformation("Seeded {count} barangays for {city}", meycauayanBarangays.Length, meycauayanCity.Name);
+                logger?.LogInformation("Seeded {count} barangays for {city}", alaminosBarangays.Length, alaminosCity.Name);
 
-                // Seed additional cities (optional)
-                var additionalCities = new[]
+                // Seed Burgos
+                var burgosCity = new City
                 {
-                    new City
-                    {
-                        Name = "Caloocan",
-                        Province = "Metro Manila",
-                        Region = "National Capital Region",
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        CreatedById = adminUser.Id,
-                        UpdatedById = adminUser.Id
-                    },
-                    new City
-                    {
-                        Name = "Valenzuela",
-                        Province = "Metro Manila",
-                        Region = "National Capital Region",
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        CreatedById = adminUser.Id,
-                        UpdatedById = adminUser.Id
-                    },
-                    new City
-                    {
-                        Name = "Malolos",
-                        Province = "Bulacan",
-                        Region = "Central Luzon",
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        CreatedById = adminUser.Id,
-                        UpdatedById = adminUser.Id
-                    }
+                    Name = "Burgos",
+                    Province = "Pangasinan",
+                    Region = "Ilocos Region",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id,
+                    UpdatedById = adminUser.Id
+                };
+                db.Cities.Add(burgosCity);
+                await db.SaveChangesAsync();
+
+                var burgosBarangays = new[]
+                {
+                    "Anapao", "Cacayasen", "Concordia", "Don Matias", "Ilio-ilio",
+                    "Papallasen", "Poblacion", "Pogoruac", "San Miguel", "San Pascual",
+                    "San Vicente", "Sapa Grande", "Sapa Pequeña", "Tambacan"
                 };
 
-                db.Cities.AddRange(additionalCities);
+                foreach (var barangayName in burgosBarangays)
+                {
+                    db.Barangays.Add(new Barangay
+                    {
+                        Name = barangayName,
+                        CityId = burgosCity.Id,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    });
+                }
                 await db.SaveChangesAsync();
-                logger?.LogInformation("Seeded {count} additional cities", additionalCities.Length);
+                logger?.LogInformation("Seeded {count} barangays for {city}", burgosBarangays.Length, burgosCity.Name);
+
+                // Seed Bani
+                var baniCity = new City
+                {
+                    Name = "Bani",
+                    Province = "Pangasinan",
+                    Region = "Ilocos Region",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id,
+                    UpdatedById = adminUser.Id
+                };
+                db.Cities.Add(baniCity);
+                await db.SaveChangesAsync();
+
+                var baniBarangays = new[]
+                {
+                    "Ambabaay", "Aporao", "Arwas", "Ballag", "Banog Norte",
+                    "Banog Sur", "Calabeng", "Centro Toma", "Colayo", "Dacap Norte",
+                    "Dacap Sur", "Garrita", "Luac", "Macabit", "Masidem",
+                    "Poblacion", "Quinaoayanan", "Ranao", "Ranom Iloco", "San Jose",
+                    "San Miguel", "San Simon", "San Vicente", "Tiep", "Tipor",
+                    "Tugui Grande", "Tugui Norte"
+                };
+
+                foreach (var barangayName in baniBarangays)
+                {
+                    db.Barangays.Add(new Barangay
+                    {
+                        Name = barangayName,
+                        CityId = baniCity.Id,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    });
+                }
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Seeded {count} barangays for {city}", baniBarangays.Length, baniCity.Name);
+
+                // Seed Sual
+                var sualCity = new City
+                {
+                    Name = "Sual",
+                    Province = "Pangasinan",
+                    Region = "Ilocos Region",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id,
+                    UpdatedById = adminUser.Id
+                };
+                db.Cities.Add(sualCity);
+                await db.SaveChangesAsync();
+
+                var sualBarangays = new[]
+                {
+                    "Baquioen", "Baybay Norte", "Baybay Sur", "Bolaoen", "Cabalitian",
+                    "Calumbuyan", "Camagsingalan", "Caoayan", "Capantolan", "Macaycayawan",
+                    "Paitan East", "Paitan West", "Pangascasan", "Poblacion", "Santo Domingo",
+                    "Seselangen", "Sioasio East", "Sioasio West", "Victoria"
+                };
+
+                foreach (var barangayName in sualBarangays)
+                {
+                    db.Barangays.Add(new Barangay
+                    {
+                        Name = barangayName,
+                        CityId = sualCity.Id,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    });
+                }
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Seeded {count} barangays for {city}", sualBarangays.Length, sualCity.Name);
+
+                // Seed Agno
+                var agnoCity = new City
+                {
+                    Name = "Agno",
+                    Province = "Pangasinan",
+                    Region = "Ilocos Region",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id,
+                    UpdatedById = adminUser.Id
+                };
+                db.Cities.Add(agnoCity);
+                await db.SaveChangesAsync();
+
+                var agnoBarangays = new[]
+                {
+                    "Allabon", "Aloleng", "Bangan-Oda", "Baruan", "Boboy",
+                    "Cayungnan", "Dangley", "Gayusan", "Macaboboni", "Magsaysay",
+                    "Namatucan", "Patar", "Poblacion East", "Poblacion West", "San Juan",
+                    "Tupa", "Viga"
+                };
+
+                foreach (var barangayName in agnoBarangays)
+                {
+                    db.Barangays.Add(new Barangay
+                    {
+                        Name = barangayName,
+                        CityId = agnoCity.Id,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    });
+                }
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Seeded {count} barangays for {city}", agnoBarangays.Length, agnoCity.Name);
+
+                // Seed Mabini
+                var mabiniCity = new City
+                {
+                    Name = "Mabini",
+                    Province = "Pangasinan",
+                    Region = "Ilocos Region",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id,
+                    UpdatedById = adminUser.Id
+                };
+                db.Cities.Add(mabiniCity);
+                await db.SaveChangesAsync();
+
+                var mabiniBarangays = new[]
+                {
+                    "Bacnit", "Barlo", "Caabiangaan", "Cabanaetan", "Cabinuangan",
+                    "Calzada", "Caranglaan", "De Guzman", "Luna", "Magalong",
+                    "Nibaliw", "Patar", "Poblacion", "San Pedro", "Tagudin",
+                    "Villacorta"
+                };
+
+                foreach (var barangayName in mabiniBarangays)
+                {
+                    db.Barangays.Add(new Barangay
+                    {
+                        Name = barangayName,
+                        CityId = mabiniCity.Id,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CreatedById = adminUser.Id,
+                        UpdatedById = adminUser.Id
+                    });
+                }
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Seeded {count} barangays for {city}", mabiniBarangays.Length, mabiniCity.Name);
             }
             else
             {
                 // Load existing city and barangay for store creation
-                meycauayanCity = await db.Cities.FirstOrDefaultAsync(c => c.Name == "Meycauayan");
-                if (meycauayanCity != null)
+                alaminosCity = await db.Cities.FirstOrDefaultAsync(c => c.Name == "Alaminos");
+                if (alaminosCity != null)
                 {
-                    sanIsidroBarangay = await db.Barangays
-                        .FirstOrDefaultAsync(b => b.Name == "San Isidro" && b.CityId == meycauayanCity.Id);
+                    poblacionBarangay = await db.Barangays
+                        .FirstOrDefaultAsync(b => b.Name == "Poblacion" && b.CityId == alaminosCity.Id);
                 }
             }
 
@@ -276,9 +738,9 @@ namespace ASTRASystem.Data
             {
                 var store = new Store
                 {
-                    Name = "Sari-Sari Store - San Isidro",
-                    CityId = meycauayanCity?.Id,
-                    BarangayId = sanIsidroBarangay?.Id,
+                    Name = "Sari-Sari Store - Poblacion Alaminos",
+                    CityId = alaminosCity?.Id,
+                    BarangayId = poblacionBarangay?.Id,
                     OwnerName = "Tito Manny",
                     Phone = "09171230000",
                     CreditLimit = 2000m,
@@ -291,21 +753,21 @@ namespace ASTRASystem.Data
                 db.Stores.Add(store);
                 await db.SaveChangesAsync();
                 logger?.LogInformation("Seeded sample Store {name} in {barangay}, {city}",
-                    store.Name, sanIsidroBarangay?.Name, meycauayanCity?.Name);
+                    store.Name, poblacionBarangay?.Name, alaminosCity?.Name);
 
                 // Seed additional sample stores
-                if (meycauayanCity != null)
+                if (alaminosCity != null)
                 {
-                    var bagbaguinBarangay = await db.Barangays
-                        .FirstOrDefaultAsync(b => b.Name == "Bagbaguin" && b.CityId == meycauayanCity.Id);
+                    var lucapBarangay = await db.Barangays
+                        .FirstOrDefaultAsync(b => b.Name == "Lucap" && b.CityId == alaminosCity.Id);
 
                     var additionalStores = new[]
                     {
                         new Store
                         {
-                            Name = "Mini Mart - Bagbaguin",
-                            CityId = meycauayanCity.Id,
-                            BarangayId = bagbaguinBarangay?.Id,
+                            Name = "Mini Mart - Lucap Beach",
+                            CityId = alaminosCity.Id,
+                            BarangayId = lucapBarangay?.Id,
                             OwnerName = "Maria Santos",
                             Phone = "09171231111",
                             CreditLimit = 5000m,
@@ -317,8 +779,8 @@ namespace ASTRASystem.Data
                         },
                         new Store
                         {
-                            Name = "Corner Store - Poblacion",
-                            CityId = meycauayanCity.Id,
+                            Name = "Corner Store - Bued",
+                            CityId = alaminosCity.Id,
                             OwnerName = "Juan Dela Cruz",
                             Phone = "09171232222",
                             CreditLimit = 3000m,
