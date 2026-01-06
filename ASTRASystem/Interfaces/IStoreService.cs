@@ -7,7 +7,7 @@ namespace ASTRASystem.Interfaces
     {
         Task<ApiResponse<StoreDto>> GetStoreByIdAsync(long id);
         Task<ApiResponse<PaginatedResponse<StoreDto>>> GetStoresAsync(StoreQueryDto query);
-        Task<ApiResponse<List<StoreListItemDto>>> GetStoresForLookupAsync(string? searchTerm = null);
+        Task<ApiResponse<List<StoreListItemDto>>> GetStoresForLookupAsync(string? searchTerm = null, long? cityId = null, long? barangayId = null);
         Task<ApiResponse<StoreDto>> CreateStoreAsync(CreateStoreDto request, string userId);
         Task<ApiResponse<StoreDto>> UpdateStoreAsync(UpdateStoreDto request, string userId);
         Task<ApiResponse<bool>> DeleteStoreAsync(long id);

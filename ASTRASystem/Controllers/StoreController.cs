@@ -39,9 +39,9 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet("lookup")]
-        public async Task<IActionResult> GetStoresForLookup([FromQuery] string? searchTerm = null)
+        public async Task<IActionResult> GetStoresForLookup([FromQuery] string? searchTerm = null, [FromQuery] long? cityId = null, [FromQuery] long? barangayId = null)
         {
-            var result = await _storeService.GetStoresForLookupAsync(searchTerm);
+            var result = await _storeService.GetStoresForLookupAsync(searchTerm, cityId, barangayId);
             return Ok(result);
         }
 

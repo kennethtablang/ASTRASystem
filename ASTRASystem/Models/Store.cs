@@ -8,6 +8,15 @@ namespace ASTRASystem.Models
         [Required, MaxLength(250)]
         public string Name { get; set; }
 
+        [MaxLength(250)]
+        public string? AddressLine1 { get; set; }
+
+        [MaxLength(250)]
+        public string? AddressLine2 { get; set; }
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+
         // Foreign key relationships for location
         public long? BarangayId { get; set; }
         [ForeignKey(nameof(BarangayId))]

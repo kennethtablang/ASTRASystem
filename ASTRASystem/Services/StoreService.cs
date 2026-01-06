@@ -117,7 +117,7 @@ namespace ASTRASystem.Services
             }
         }
 
-        public async Task<ApiResponse<List<StoreListItemDto>>> GetStoresForLookupAsync(string? searchTerm = null)
+        public async Task<ApiResponse<List<StoreListItemDto>>> GetStoresForLookupAsync(string? searchTerm = null, long? cityId = null, long? barangayId = null)
         {
             try
             {
@@ -132,6 +132,16 @@ namespace ASTRASystem.Services
                     query = query.Where(s =>
                         s.Name.ToLower().Contains(searchLower) ||
                         (s.OwnerName != null && s.OwnerName.ToLower().Contains(searchLower)));
+                }
+
+                if (cityId.HasValue)
+                {
+                    query = query.Where(s => s.CityId == cityId.Value);
+                }
+
+                if (barangayId.HasValue)
+                {
+                    query = query.Where(s => s.BarangayId == barangayId.Value);
                 }
 
                 var stores = await query

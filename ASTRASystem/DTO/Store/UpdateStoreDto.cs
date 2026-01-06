@@ -15,6 +15,15 @@ namespace ASTRASystem.DTO.Store
 
         public long? CityId { get; set; }
 
+        [MaxLength(250)]
+        public string? AddressLine1 { get; set; }
+
+        [MaxLength(250)]
+        public string? AddressLine2 { get; set; }
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+
         [MaxLength(200)]
         public string? OwnerName { get; set; }
 
