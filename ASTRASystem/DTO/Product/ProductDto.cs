@@ -12,6 +12,7 @@
         public bool IsPerishable { get; set; }
         public bool IsBarcoded { get; set; }
         public string? Barcode { get; set; }
+        public string? ImageUrl { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

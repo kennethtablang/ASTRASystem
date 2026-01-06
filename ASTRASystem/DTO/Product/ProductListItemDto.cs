@@ -11,5 +11,6 @@
         public string? UnitOfMeasure { get; set; }
         public bool IsBarcoded { get; set; }
         public string? Barcode { get; set; }
+        public string? ImageUrl { get; set; }
     }
 }

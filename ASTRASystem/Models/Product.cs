@@ -27,5 +27,8 @@ namespace ASTRASystem.Models
 
         [MaxLength(100)]
         public string? Barcode { get; set; }
+
+        [MaxLength(500)]
+        public string? ImageUrl { get; set; }
     }
 }

@@ -175,6 +175,21 @@ namespace ASTRASystem
 
             app.UseHttpsRedirection();
             app.UseCors("AllowFrontendDev");
+
+            // Serve static files from Assets/Uploads
+            var uploadPath = Path.Combine(builder.Environment.ContentRootPath, "Assets", "Uploads");
+            if (!Directory.Exists(uploadPath))
+            {
+                Directory.CreateDirectory(uploadPath);
+            }
+            
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadPath),
+                RequestPath = "/assets/uploads",
+                ServeUnknownFileTypes = true
+            });
+
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();

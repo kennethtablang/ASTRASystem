@@ -77,7 +77,7 @@ namespace ASTRASystem.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin,DistributorAdmin")]
-        public async Task<IActionResult> CreateProduct([FromBody] CreateProductDto request)
+        public async Task<IActionResult> CreateProduct([FromForm] CreateProductDto request, [FromForm] IFormFile? image)
         {
             // Use ClaimTypes.NameIdentifier for the user ID
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -90,7 +90,7 @@ namespace ASTRASystem.Controllers
 
             _logger.LogInformation("CreateProduct: User {UserId} creating product {ProductSku}", userId, request.Sku);
 
-            var result = await _productService.CreateProductAsync(request, userId);
+            var result = await _productService.CreateProductAsync(request, image, userId);
             if (!result.Success)
             {
                 return BadRequest(result);
@@ -100,7 +100,11 @@ namespace ASTRASystem.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,DistributorAdmin")]
-        public async Task<IActionResult> UpdateProduct(long id, [FromBody] UpdateProductDto request)
+        public async Task<IActionResult> UpdateProduct(
+            long id,
+            [FromForm] UpdateProductDto request,
+            [FromForm] IFormFile? image,
+            [FromForm] bool removeImage = false)
         {
             if (id != request.Id)
             {
@@ -118,7 +122,7 @@ namespace ASTRASystem.Controllers
 
             _logger.LogInformation("UpdateProduct: User {UserId} updating product {ProductId}", userId, id);
 
-            var result = await _productService.UpdateProductAsync(request, userId);
+            var result = await _productService.UpdateProductAsync(request, image, removeImage, userId);
             if (!result.Success)
             {
                 return BadRequest(result);
@@ -163,6 +167,49 @@ namespace ASTRASystem.Controllers
         public async Task<IActionResult> GetCategories()
         {
             var result = await _productService.GetProductCategoriesAsync();
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/image")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> UploadProductImage(long id, [FromForm] IFormFile image)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            if (image == null)
+            {
+                return BadRequest(new { success = false, message = "Image file is required" });
+            }
+
+            var result = await _productService.UploadProductImageAsync(id, image, userId);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
+        [HttpDelete("{id}/image")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> DeleteProductImage(long id)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            var result = await _productService.DeleteProductImageAsync(id, userId);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
             return Ok(result);
         }
 

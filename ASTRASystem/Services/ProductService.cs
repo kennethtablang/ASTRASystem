@@ -14,6 +14,7 @@ namespace ASTRASystem.Services
         private readonly IMapper _mapper;
         private readonly IAuditLogService _auditLogService;
         private readonly IBarcodeService _barcodeService;
+        private readonly IFileStorageService _fileStorageService;
         private readonly ILogger<ProductService> _logger;
 
         public ProductService(
@@ -21,12 +22,14 @@ namespace ASTRASystem.Services
             IMapper mapper,
             IAuditLogService auditLogService,
             IBarcodeService barcodeService,
+            IFileStorageService fileStorageService,
             ILogger<ProductService> logger)
         {
             _context = context;
             _mapper = mapper;
             _auditLogService = auditLogService;
             _barcodeService = barcodeService;
+            _fileStorageService = fileStorageService;
             _logger = logger;
         }
 
@@ -35,6 +38,7 @@ namespace ASTRASystem.Services
             try
             {
                 var product = await _context.Products
+                    .Include(p => p.Category)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Id == id);
 
@@ -58,6 +62,7 @@ namespace ASTRASystem.Services
             try
             {
                 var product = await _context.Products
+                    .Include(p => p.Category)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.Sku == sku);
 
@@ -175,6 +180,7 @@ namespace ASTRASystem.Services
                     IsPerishable = p.IsPerishable,
                     IsBarcoded = p.IsBarcoded,
                     Barcode = p.Barcode,
+                    ImageUrl = p.ImageUrl,
                     CreatedAt = p.CreatedAt,
                     UpdatedAt = p.UpdatedAt
                 }).ToList();
@@ -196,7 +202,9 @@ namespace ASTRASystem.Services
         {
             try
             {
-                var query = _context.Products.AsNoTracking();
+                var query = _context.Products
+                    .Include(p => p.Category)
+                    .AsNoTracking();
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
@@ -222,7 +230,7 @@ namespace ASTRASystem.Services
             }
         }
 
-        public async Task<ApiResponse<ProductDto>> CreateProductAsync(CreateProductDto request, string userId)
+        public async Task<ApiResponse<ProductDto>> CreateProductAsync(CreateProductDto request, IFormFile? image, string userId)
         {
             try
             {
@@ -273,6 +281,13 @@ namespace ASTRASystem.Services
                 product.CreatedById = userId;
                 product.UpdatedById = userId;
 
+                // Handle image upload if provided
+                if (image != null)
+                {
+                    var imageUrl = await HandleImageUploadAsync(image);
+                    product.ImageUrl = imageUrl;
+                }
+
                 _context.Products.Add(product);
                 await _context.SaveChangesAsync();
 
@@ -303,6 +318,7 @@ namespace ASTRASystem.Services
                     IsPerishable = product.IsPerishable,
                     IsBarcoded = product.IsBarcoded,
                     Barcode = product.Barcode,
+                    ImageUrl = product.ImageUrl,
                     CreatedAt = product.CreatedAt,
                     UpdatedAt = product.UpdatedAt
                 };
@@ -318,7 +334,7 @@ namespace ASTRASystem.Services
             }
         }
 
-        public async Task<ApiResponse<ProductDto>> UpdateProductAsync(UpdateProductDto request, string userId)
+        public async Task<ApiResponse<ProductDto>> UpdateProductAsync(UpdateProductDto request, IFormFile? image, bool removeImage, string userId)
         {
             try
             {
@@ -367,6 +383,7 @@ namespace ASTRASystem.Services
 
                 var oldPrice = product.Price;
                 var oldBarcode = product.Barcode;
+                var oldImageUrl = product.ImageUrl;
 
                 product.Sku = request.Sku;
                 product.Name = request.Name;
@@ -378,6 +395,25 @@ namespace ASTRASystem.Services
                 product.Barcode = request.Barcode;
                 product.UpdatedAt = DateTime.UtcNow;
                 product.UpdatedById = userId;
+
+                // Handle image operations
+                if (removeImage && !string.IsNullOrEmpty(product.ImageUrl))
+                {
+                    // Delete existing image
+                    await _fileStorageService.DeleteFileAsync(product.ImageUrl);
+                    product.ImageUrl = null;
+                }
+                else if (image != null)
+                {
+                    // Delete old image if exists
+                    if (!string.IsNullOrEmpty(product.ImageUrl))
+                    {
+                        await _fileStorageService.DeleteFileAsync(product.ImageUrl);
+                    }
+                    // Upload new image
+                    var imageUrl = await HandleImageUploadAsync(image);
+                    product.ImageUrl = imageUrl;
+                }
 
                 await _context.SaveChangesAsync();
 
@@ -556,6 +592,122 @@ namespace ASTRASystem.Services
                 _logger.LogError(ex, "Error generating barcode");
                 return ApiResponse<byte[]>.ErrorResponse("An error occurred while generating barcode");
             }
+        }
+
+        public async Task<ApiResponse<ProductDto>> UploadProductImageAsync(long productId, IFormFile image, string userId)
+        {
+            try
+            {
+                var product = await _context.Products
+                    .Include(p => p.Category)
+                    .FirstOrDefaultAsync(p => p.Id == productId);
+
+                if (product == null)
+                {
+                    return ApiResponse<ProductDto>.ErrorResponse("Product not found");
+                }
+
+                // Delete old image if exists
+                if (!string.IsNullOrEmpty(product.ImageUrl))
+                {
+                    await _fileStorageService.DeleteFileAsync(product.ImageUrl);
+                }
+
+                // Upload new image
+                var imageUrl = await HandleImageUploadAsync(image);
+                product.ImageUrl = imageUrl;
+                product.UpdatedAt = DateTime.UtcNow;
+                product.UpdatedById = userId;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Product image uploaded",
+                    new
+                    {
+                        ProductId = product.Id,
+                        Sku = product.Sku,
+                        Name = product.Name,
+                        ImageUrl = imageUrl
+                    });
+
+                var productDto = _mapper.Map<ProductDto>(product);
+                return ApiResponse<ProductDto>.SuccessResponse(
+                    productDto,
+                    "Product image uploaded successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading product image");
+                return ApiResponse<ProductDto>.ErrorResponse("An error occurred while uploading image");
+            }
+        }
+
+        public async Task<ApiResponse<bool>> DeleteProductImageAsync(long productId, string userId)
+        {
+            try
+            {
+                var product = await _context.Products.FindAsync(productId);
+                if (product == null)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Product not found");
+                }
+
+                if (string.IsNullOrEmpty(product.ImageUrl))
+                {
+                    return ApiResponse<bool>.ErrorResponse("Product has no image to delete");
+                }
+
+                // Delete physical file
+                await _fileStorageService.DeleteFileAsync(product.ImageUrl);
+
+                // Update product
+                product.ImageUrl = null;
+                product.UpdatedAt = DateTime.UtcNow;
+                product.UpdatedById = userId;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Product image deleted",
+                    new { ProductId = product.Id, Sku = product.Sku, Name = product.Name });
+
+                return ApiResponse<bool>.SuccessResponse(true, "Product image deleted successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting product image");
+                return ApiResponse<bool>.ErrorResponse("An error occurred while deleting image");
+            }
+        }
+
+        private async Task<string> HandleImageUploadAsync(IFormFile image)
+        {
+            // Validate image
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+            var maxSize = 5 * 1024 * 1024; // 5MB
+
+            if (image.Length > maxSize)
+            {
+                throw new InvalidOperationException("Image size must not exceed 5MB");
+            }
+
+            var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                throw new InvalidOperationException("Only JPG, JPEG, and PNG images are allowed");
+            }
+
+            // Generate unique filename
+            var fileName = $"product_{Guid.NewGuid()}{extension}";
+
+            // Upload file
+            using var stream = image.OpenReadStream();
+            var imageUrl = await _fileStorageService.UploadFileAsync(stream, fileName, image.ContentType);
+
+            return imageUrl;
         }
     }
 }

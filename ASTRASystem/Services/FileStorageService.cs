@@ -1,4 +1,5 @@
 ﻿using ASTRASystem.Interfaces;
+using SkiaSharp;
 
 namespace ASTRASystem.Services
 {
@@ -29,10 +30,13 @@ namespace ASTRASystem.Services
                 var uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
                 var filePath = Path.Combine(_uploadPath, uniqueFileName);
 
+                // Compress image
+                using var compressedStream = CompressImage(fileStream, fileName);
+
                 // Save file
                 using (var outputStream = new FileStream(filePath, FileMode.Create))
                 {
-                    await fileStream.CopyToAsync(outputStream);
+                    await compressedStream.CopyToAsync(outputStream);
                 }
 
                 // Return relative URL
@@ -104,6 +108,61 @@ namespace ASTRASystem.Services
             // For local file storage, just return the URL
             // In production with cloud storage (S3, Azure Blob), implement proper signed URLs
             return Task.FromResult(fileUrl);
+        }
+        private Stream CompressImage(Stream inputStream, string fileName)
+        {
+            try
+            {
+                // Reset stream position if possible
+                if (inputStream.CanSeek)
+                {
+                    inputStream.Position = 0;
+                }
+
+                using var originalBitmap = SKBitmap.Decode(inputStream);
+                if (originalBitmap == null)
+                {
+                    _logger.LogWarning("Could not decode image {FileName}, saving as is.", fileName);
+                    if (inputStream.CanSeek) inputStream.Position = 0;
+                    return inputStream;
+                }
+
+                // Resize if needed
+                int maxWidth = 800;
+                int maxHeight = 800;
+                var resizedBitmap = originalBitmap;
+
+                if (originalBitmap.Width > maxWidth || originalBitmap.Height > maxHeight)
+                {
+                    float ratioX = (float)maxWidth / originalBitmap.Width;
+                    float ratioY = (float)maxHeight / originalBitmap.Height;
+                    float ratio = Math.Min(ratioX, ratioY);
+
+                    int newWidth = (int)(originalBitmap.Width * ratio);
+                    int newHeight = (int)(originalBitmap.Height * ratio);
+
+                    var info = new SKImageInfo(newWidth, newHeight);
+                    resizedBitmap = originalBitmap.Resize(info, SKFilterQuality.High);
+                }
+
+                // Encode to image
+                using var image = SKImage.FromBitmap(resizedBitmap);
+                var data = image.Encode(SKEncodedImageFormat.Jpeg, 75); // Quality 75
+
+                // Dispose resized bitmap if it's different from original
+                if (resizedBitmap != originalBitmap)
+                {
+                    resizedBitmap.Dispose();
+                }
+
+                return data.AsStream();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error compressing image {FileName}, saving as is.", fileName);
+                if (inputStream.CanSeek) inputStream.Position = 0;
+                return inputStream;
+            }
         }
     }
 }

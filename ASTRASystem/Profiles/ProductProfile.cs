@@ -19,6 +19,7 @@ namespace ASTRASystem.Profiles
             // CreateProductDto -> Product
             CreateMap<CreateProductDto, Product>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.ImageUrl, opt => opt.Ignore()) // Handled separately via file upload
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedById, opt => opt.Ignore())
