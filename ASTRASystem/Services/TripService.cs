@@ -18,6 +18,7 @@ namespace ASTRASystem.Services
         private readonly INotificationService _notificationService;
         private readonly IPdfService _pdfService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IEmailService _emailService;
         private readonly ILogger<TripService> _logger;
 
         public TripService(
@@ -27,6 +28,7 @@ namespace ASTRASystem.Services
             INotificationService notificationService,
             IPdfService pdfService,
             UserManager<ApplicationUser> userManager,
+            IEmailService emailService,
             ILogger<TripService> logger)
         {
             _context = context;
@@ -35,6 +37,7 @@ namespace ASTRASystem.Services
             _notificationService = notificationService;
             _pdfService = pdfService;
             _userManager = userManager;
+            _emailService = emailService;
             _logger = logger;
         }
 
@@ -255,6 +258,26 @@ namespace ASTRASystem.Services
                     request.DispatcherId,
                     "TripAssigned",
                     $"Trip #{trip.Id} has been assigned to you with {request.OrderIds.Count} order(s)");
+
+                // Send email to dispatcher
+                if (dispatcher != null && !string.IsNullOrEmpty(dispatcher.Email))
+                {
+                    await _emailService.SendEmailAsync(
+                        dispatcher.Email,
+                        $"New Trip Assignment - Trip #{trip.Id}",
+                        $@"
+                        <h2>New Trip Assigned</h2>
+                        <p>Hello {dispatcher.FirstName},</p>
+                        <p>A new trip has been assigned to you.</p>
+                        <ul>
+                            <li><strong>Trip ID:</strong> #{trip.Id}</li>
+                            <li><strong>Orders:</strong> {request.OrderIds.Count}</li>
+                            <li><strong>Vehicle:</strong> {trip.Vehicle}</li>
+                            <li><strong>Departure:</strong> {trip.DepartureAt:MMM dd, yyyy h:mm tt}</li>
+                        </ul>
+                        <p>Please log in to the application to view full details.</p>
+                        ");
+                }
 
                 return await GetTripByIdAsync(trip.Id);
             }
