@@ -211,6 +211,8 @@ namespace ASTRASystem.Services
                         OrderId = order.Id,
                         SequenceNo = assignment.SequenceNo,
                         StoreName = order.Store.Name,
+                        StoreLatitude = order.Store.Latitude,
+                        StoreLongitude = order.Store.Longitude,
                         Status = order.Status.ToString(),
                         DeliveredAt = deliveredAt,
                         HasException = hasException
