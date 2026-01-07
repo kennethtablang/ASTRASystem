@@ -28,7 +28,7 @@ namespace ASTRASystem.DTO.Store
         [MaxLength(100)]
         public string? Phone { get; set; }
 
-        [Range(0, double.MaxValue, ErrorMessage = "Credit limit cannot be negative")]
+        [Range(0, 999999999999.99)]
         public decimal CreditLimit { get; set; } = 0m;
 
         [MaxLength(100)]

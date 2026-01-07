@@ -31,7 +31,7 @@ namespace ASTRASystem.DTO.Store
         [MaxLength(100)]
         public string? Phone { get; set; }
 
-        [Range(0, double.MaxValue)]
+        [Range(0, 999999999999.99)]
         public decimal CreditLimit { get; set; }
 
         [MaxLength(100)]

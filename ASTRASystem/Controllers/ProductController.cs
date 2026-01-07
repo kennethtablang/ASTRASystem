@@ -77,7 +77,7 @@ namespace ASTRASystem.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin,DistributorAdmin")]
-        public async Task<IActionResult> CreateProduct([FromForm] CreateProductDto request, [FromForm] IFormFile? image)
+        public async Task<IActionResult> CreateProduct([FromForm] CreateProductDto request, IFormFile? image)
         {
             // Use ClaimTypes.NameIdentifier for the user ID
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -103,7 +103,7 @@ namespace ASTRASystem.Controllers
         public async Task<IActionResult> UpdateProduct(
             long id,
             [FromForm] UpdateProductDto request,
-            [FromForm] IFormFile? image,
+            IFormFile? image,
             [FromForm] bool removeImage = false)
         {
             if (id != request.Id)
@@ -172,7 +172,7 @@ namespace ASTRASystem.Controllers
 
         [HttpPost("{id}/image")]
         [Authorize(Roles = "Admin,DistributorAdmin")]
-        public async Task<IActionResult> UploadProductImage(long id, [FromForm] IFormFile image)
+        public async Task<IActionResult> UploadProductImage(long id, IFormFile image)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 

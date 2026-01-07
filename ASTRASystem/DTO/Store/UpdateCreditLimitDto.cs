@@ -8,7 +8,7 @@ namespace ASTRASystem.DTO.Store
         public long StoreId { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Credit limit cannot be negative")]
+        [Range(0, 999999999999.99)]
         public decimal NewCreditLimit { get; set; }
 
         [MaxLength(500)]

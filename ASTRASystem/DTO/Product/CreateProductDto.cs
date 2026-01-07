@@ -15,7 +15,7 @@ namespace ASTRASystem.DTO.Product
         public long? CategoryId { get; set; }
 
         [Required(ErrorMessage = "Price is required")]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than zero")]
+        [Range(0.01, 999999999999.99, ErrorMessage = "Price must be greater than zero")]
         public decimal Price { get; set; }
 
         [MaxLength(50)]
