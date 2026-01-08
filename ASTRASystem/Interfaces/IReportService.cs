@@ -9,5 +9,6 @@ namespace ASTRASystem.Interfaces
         Task<byte[]> GenerateAgentActivityReportAsync(string agentId, DateTime from, DateTime to);
         Task<byte[]> GenerateStockMovementReportAsync(long warehouseId, DateTime from, DateTime to);
         Task<ApiResponse<DashboardStatsDto>> GetDashboardStatsAsync(DateTime? from = null, DateTime? to = null);
+        Task<ApiResponse<List<ASTRASystem.DTO.Reports.ProductSalesDto>>> GetTopSellingProductsAsync(int limit = 5, DateTime? from = null, DateTime? to = null);
     }
 }

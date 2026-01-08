@@ -187,5 +187,50 @@ namespace ASTRASystem.Services
                 return ApiResponse<DashboardStatsDto>.ErrorResponse("An error occurred");
             }
         }
+        public async Task<ApiResponse<List<ASTRASystem.DTO.Reports.ProductSalesDto>>> GetTopSellingProductsAsync(int limit = 5, DateTime? from = null, DateTime? to = null)
+        {
+            try
+            {
+                var query = _context.OrderItems
+                    .Include(oi => oi.Order)
+                    .AsNoTracking();
+
+                if (from.HasValue)
+                {
+                    query = query.Where(oi => oi.Order.CreatedAt >= from.Value);
+                }
+
+                if (to.HasValue)
+                {
+                    query = query.Where(oi => oi.Order.CreatedAt < to.Value);
+                }
+
+                // Only count completed/valid orders if needed, for now all orders
+                // query = query.Where(oi => oi.Order.Status != OrderStatus.Cancelled);
+
+                var topProducts = await query
+                    .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.Sku, oi.Product.Price, CategoryName = oi.Product.Category.Name })
+                    .Select(g => new ASTRASystem.DTO.Reports.ProductSalesDto
+                    {
+                        Id = g.Key.ProductId,
+                        Name = g.Key.Name,
+                        Sku = g.Key.Sku,
+                        Price = g.Key.Price,
+                        CategoryName = g.Key.CategoryName,
+                        UnitsSold = g.Sum(oi => oi.Quantity),
+                        TotalRevenue = g.Sum(oi => oi.Quantity * oi.UnitPrice)
+                    })
+                    .OrderByDescending(p => p.UnitsSold)
+                    .Take(limit)
+                    .ToListAsync();
+
+                return ApiResponse<List<ASTRASystem.DTO.Reports.ProductSalesDto>>.SuccessResponse(topProducts);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting top selling products");
+                return ApiResponse<List<ASTRASystem.DTO.Reports.ProductSalesDto>>.ErrorResponse("An error occurred getting top products");
+            }
+        }
     }
 }

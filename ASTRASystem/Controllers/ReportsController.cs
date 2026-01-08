@@ -33,6 +33,16 @@ namespace ASTRASystem.Controllers
         }
 
         /// <summary>
+        /// Get top selling products
+        /// </summary>
+        [HttpGet("top-products")]
+        public async Task<IActionResult> GetTopSellingProducts([FromQuery] int limit = 5, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null)
+        {
+            var result = await _reportService.GetTopSellingProductsAsync(limit, from, to);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Generate daily sales report (Excel)
         /// </summary>
         [HttpGet("daily-sales")]
