@@ -686,7 +686,7 @@ namespace ASTRASystem.Services
         private async Task<string> HandleImageUploadAsync(IFormFile image)
         {
             // Validate image
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
             var maxSize = 5 * 1024 * 1024; // 5MB
 
             if (image.Length > maxSize)
@@ -697,7 +697,7 @@ namespace ASTRASystem.Services
             var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
             if (!allowedExtensions.Contains(extension))
             {
-                throw new InvalidOperationException("Only JPG, JPEG, and PNG images are allowed");
+                throw new InvalidOperationException($"Invalid image format: {extension}. Allowed formats: JPG, JPEG, PNG, WEBP, GIF");
             }
 
             // Generate unique filename
