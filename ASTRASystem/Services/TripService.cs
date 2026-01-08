@@ -404,6 +404,34 @@ namespace ASTRASystem.Services
                         $"Trip #{trip.Id} status changed to {request.NewStatus}");
                 }
 
+                // Notify Distributor if Trip matches "Completed"
+                if (request.NewStatus == TripStatus.Completed)
+                {
+                    // Assuming trip -> Warehouse -> Distributor relationship
+                    var tripWithDistributor = await _context.Trips
+                        .Include(t => t.Warehouse)
+                            .ThenInclude(w => w.Distributor)
+                        .FirstOrDefaultAsync(t => t.Id == trip.Id);
+
+                    var distributor = tripWithDistributor?.Warehouse?.Distributor;
+
+                    if (distributor != null && !string.IsNullOrEmpty(distributor.Email))
+                    {
+                         await _emailService.SendEmailAsync(
+                            distributor.Email,
+                            $"Trip Completed - #{trip.Id}",
+                            $@"
+                            <h2>Trip Completed</h2>
+                            <p>Trip #{trip.Id} has been successfully completed.</p>
+                            <ul>
+                                <li><strong>Vehicle:</strong> {trip.Vehicle}</li>
+                                <li><strong>Departure:</strong> {trip.DepartureAt:MMM dd, yyyy h:mm tt}</li>
+                                <li><strong>Completion Time:</strong> {DateTime.UtcNow:MMM dd, yyyy h:mm tt}</li>
+                            </ul>
+                            ");
+                    }
+                }
+
                 return await GetTripByIdAsync(trip.Id);
             }
             catch (Exception ex)
