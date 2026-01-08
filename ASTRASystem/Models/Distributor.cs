@@ -13,6 +13,10 @@ namespace ASTRASystem.Models
         [MaxLength(500)]
         public string Address { get; set; }
 
+        [MaxLength(250)]
+        [EmailAddress]
+        public string Email { get; set; }
+
         public ICollection<Warehouse> Warehouses { get; set; } = new List<Warehouse>();
     }
 }
