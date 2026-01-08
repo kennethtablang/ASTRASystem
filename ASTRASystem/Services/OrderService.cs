@@ -18,6 +18,7 @@ namespace ASTRASystem.Services
         private readonly INotificationService _notificationService;
         private readonly IPdfService _pdfService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IEmailService _emailService;
         private readonly ILogger<OrderService> _logger;
 
         public OrderService(
@@ -27,6 +28,7 @@ namespace ASTRASystem.Services
             INotificationService notificationService,
             IPdfService pdfService,
             UserManager<ApplicationUser> userManager,
+            IEmailService emailService,
             ILogger<OrderService> logger)
         {
             _context = context;
@@ -35,6 +37,7 @@ namespace ASTRASystem.Services
             _notificationService = notificationService;
             _pdfService = pdfService;
             _userManager = userManager;
+            _emailService = emailService;
             _logger = logger;
         }
 
@@ -316,6 +319,30 @@ namespace ASTRASystem.Services
                 var orderDto = _mapper.Map<OrderDto>(order);
                 var agent = await _userManager.FindByIdAsync(agentId);
                 orderDto.AgentName = agent?.FullName;
+
+                // Notify distributor admin via email if available
+                if (request.DistributorId.HasValue)
+                {
+                    var distributor = await _context.Distributors.FindAsync(request.DistributorId.Value);
+                    if (distributor != null && !string.IsNullOrEmpty(distributor.Email))
+                    {
+
+                        await _emailService.SendEmailAsync(
+                            distributor.Email,
+                            $"New Order Created - #{order.Id}",
+                            $@"
+                            <h2>New Order Created</h2>
+                            <p>A new order has been created by {agent?.FullName ?? "an agent"}.</p>
+                            <ul>
+                                <li><strong>Order ID:</strong> #{order.Id}</li>
+                                <li><strong>Store:</strong> {store.Name}</li>
+                                <li><strong>Total Amount:</strong> ₱{order.Total:N2}</li>
+                                <li><strong>Date:</strong> {order.CreatedAt:MMM dd, yyyy h:mm tt}</li>
+                            </ul>
+                            <p>Please log in to the application to view full details.</p>
+                            ");
+                    }
+                }
 
                 return ApiResponse<OrderDto>.SuccessResponse(
                     orderDto,
@@ -889,6 +916,28 @@ namespace ASTRASystem.Services
                     userId,
                     "Order delivered",
                     new { OrderId = order.Id, Notes = notes });
+
+                // Notify distributor if available
+                if (order.DistributorId.HasValue)
+                {
+                    var distributor = await _context.Distributors.FindAsync(order.DistributorId.Value);
+                    if (distributor != null && !string.IsNullOrEmpty(distributor.Email))
+                    {
+                        await _emailService.SendEmailAsync(
+                            distributor.Email,
+                            $"Order Delivered - #{order.Id}",
+                            $@"
+                            <h2>Order Delivered</h2>
+                            <p>Order #{order.Id} has been successfully delivered.</p>
+                            <ul>
+                                <li><strong>Store:</strong> {order.Store?.Name ?? "Store"}</li>
+                                <li><strong>Total Amount:</strong> ₱{order.Total:N2}</li>
+                                <li><strong>Date Delivered:</strong> {DateTime.UtcNow:MMM dd, yyyy h:mm tt}</li>
+                                <li><strong>Notes:</strong> {notes ?? "N/A"}</li>
+                            </ul>
+                            ");
+                    }
+                }
 
                 await _notificationService.SendNotificationAsync(
                     order.AgentId,
