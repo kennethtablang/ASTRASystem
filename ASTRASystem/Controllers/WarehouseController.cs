@@ -39,6 +39,16 @@ namespace ASTRASystem.Controllers
         [HttpGet]
         public async Task<IActionResult> GetWarehouses([FromQuery] long? distributorId = null)
         {
+            // If user is a DistributorAdmin, force filtering by their distributor ID
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
             var result = await _warehouseService.GetWarehousesAsync(distributorId);
             return Ok(result);
         }
