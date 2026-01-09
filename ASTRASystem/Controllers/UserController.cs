@@ -156,7 +156,17 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> GetUsersByRole(string role)
         {
-            var result = await _userService.GetUsersByRoleAsync(role);
+            long? distributorId = null;
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
+            var result = await _userService.GetUsersByRoleAsync(role, distributorId);
             return Ok(result);
         }
 

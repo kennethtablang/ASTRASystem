@@ -33,7 +33,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,Agent,Dispatcher")]
+        [Authorize(Roles = "Admin,Agent,Dispatcher,DistributorAdmin")]
         public async Task<IActionResult> GetOrders([FromQuery] OrderQueryDto query)
         {
             var result = await _orderService.GetOrdersAsync(query);

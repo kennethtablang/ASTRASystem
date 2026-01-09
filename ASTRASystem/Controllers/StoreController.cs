@@ -95,7 +95,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> DeleteStore(long id)
         {
             var result = await _storeService.DeleteStoreAsync(id);
