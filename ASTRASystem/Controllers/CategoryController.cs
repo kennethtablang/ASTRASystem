@@ -108,7 +108,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> DeleteCategory(long id)
         {
             var result = await _categoryService.DeleteCategoryAsync(id);
