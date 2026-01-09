@@ -870,6 +870,22 @@ namespace ASTRASystem.Data
                 logger?.LogInformation("Seeded sample Order {orderId} for store {store}", order.Id, store.Name);
             }
 
+            // 10) Data Fix: Ensure all orders have a DistributorId (for existing data compatibility)
+            var ordersWithoutDistributor = await db.Orders
+                .Where(o => o.DistributorId == null)
+                .ToListAsync();
+
+            if (ordersWithoutDistributor.Any())
+            {
+                foreach (var o in ordersWithoutDistributor)
+                {
+                    o.DistributorId = distributor.Id;
+                    o.WarehouseId = warehouse.Id; // Also fix warehouse if missing
+                }
+                await db.SaveChangesAsync();
+                logger?.LogInformation("Fixed {count} orders with missing DistributorId", ordersWithoutDistributor.Count);
+            }
+
             logger?.LogInformation("AstraSeeder completed successfully.");
         }
     }
