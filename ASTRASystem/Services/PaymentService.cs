@@ -78,6 +78,11 @@ namespace ASTRASystem.Services
                     paymentsQuery = paymentsQuery.Where(p => p.Order.StoreId == query.StoreId.Value);
                 }
 
+                if (query.DistributorId.HasValue)
+                {
+                    paymentsQuery = paymentsQuery.Where(p => p.Order.DistributorId == query.DistributorId.Value);
+                }
+
                 if (query.Method.HasValue)
                 {
                     paymentsQuery = paymentsQuery.Where(p => p.Method == query.Method.Value);
@@ -117,12 +122,17 @@ namespace ASTRASystem.Services
 
                 var paymentDtos = _mapper.Map<List<PaymentDto>>(payments);
                 
-                // Optimized name lookup
-                var userIds = payments.Select(p => p.RecordedById).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
-                if (userIds.Any())
+                // Optimized name lookup for RecordedBy
+                var recordedByIds = payments.Select(p => p.RecordedById).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+                var reconciledByIds = payments.Where(p => p.IsReconciled).Select(p => p.ReconciledById).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+                
+                // Combine all user IDs we need to look up
+                var allUserIds = recordedByIds.Union(reconciledByIds).Distinct().ToList();
+                
+                if (allUserIds.Any())
                 {
                     var users = await _userManager.Users
-                        .Where(u => userIds.Contains(u.Id))
+                        .Where(u => allUserIds.Contains(u.Id))
                         .Select(u => new { u.Id, u.FullName })
                         .ToListAsync();
                     
@@ -130,9 +140,16 @@ namespace ASTRASystem.Services
 
                     foreach (var dto in paymentDtos)
                     {
-                        if (!string.IsNullOrEmpty(dto.RecordedById) && userMap.TryGetValue(dto.RecordedById, out var name))
+                        // Populate RecordedByName
+                        if (!string.IsNullOrEmpty(dto.RecordedById) && userMap.TryGetValue(dto.RecordedById, out var recordedName))
                         {
-                            dto.RecordedByName = name;
+                            dto.RecordedByName = recordedName;
+                        }
+                        
+                        // Populate ReconciledByName
+                        if (dto.IsReconciled && !string.IsNullOrEmpty(dto.ReconciledById) && userMap.TryGetValue(dto.ReconciledById, out var reconciledName))
+                        {
+                            dto.ReconciledByName = reconciledName;
                         }
                     }
                 }
@@ -275,14 +292,23 @@ namespace ASTRASystem.Services
             }
         }
 
-        public async Task<ApiResponse<bool>> ReconcilePaymentAsync(ReconcilePaymentDto request, string userId)
+        public async Task<ApiResponse<bool>> ReconcilePaymentAsync(ReconcilePaymentDto request, string userId, long? distributorId = null)
         {
             try
             {
-                var payment = await _context.Payments.FindAsync(request.PaymentId);
+                var payment = await _context.Payments
+                    .Include(p => p.Order)
+                    .FirstOrDefaultAsync(p => p.Id == request.PaymentId);
+
                 if (payment == null)
                 {
                     return ApiResponse<bool>.ErrorResponse("Payment not found");
+                }
+
+                // Verify Distributor Access
+                if (distributorId.HasValue && payment.Order.DistributorId != distributorId.Value)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Unauthorized: Payment does not belong to your distributor");
                 }
 
                 if (payment.IsReconciled)
@@ -366,13 +392,21 @@ namespace ASTRASystem.Services
             }
         }
 
-        public async Task<ApiResponse<List<PaymentReconciliationDto>>> GetUnreconciledPaymentsAsync()
+        public async Task<ApiResponse<List<PaymentReconciliationDto>>> GetUnreconciledPaymentsAsync(long? distributorId = null)
         {
             try
             {
-                var payments = await _context.Payments
+                var paymentsQuery = _context.Payments
+                    .Include(p => p.Order)
                     .Where(p => !p.IsReconciled)
-                    .AsNoTracking()
+                    .AsNoTracking();
+
+                if (distributorId.HasValue)
+                {
+                    paymentsQuery = paymentsQuery.Where(p => p.Order.DistributorId == distributorId.Value);
+                }
+
+                var payments = await paymentsQuery
                     .OrderByDescending(p => p.RecordedAt)
                     .ToListAsync();
 

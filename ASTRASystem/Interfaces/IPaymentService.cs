@@ -9,9 +9,9 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<PaginatedResponse<PaymentDto>>> GetPaymentsAsync(PaymentQueryDto query);
         Task<ApiResponse<PaymentDto>> RecordPaymentAsync(RecordPaymentDto request, string userId);
         Task<ApiResponse<List<PaymentDto>>> GetPaymentsByOrderAsync(long orderId);
-        Task<ApiResponse<bool>> ReconcilePaymentAsync(ReconcilePaymentDto request, string userId);
+        Task<ApiResponse<bool>> ReconcilePaymentAsync(ReconcilePaymentDto request, string userId, long? distributorId = null);
         Task<ApiResponse<CashCollectionSummaryDto>> GetCashCollectionSummaryAsync(long? tripId = null, string? dispatcherId = null, DateTime? date = null);
-        Task<ApiResponse<List<PaymentReconciliationDto>>> GetUnreconciledPaymentsAsync();
+        Task<ApiResponse<List<PaymentReconciliationDto>>> GetUnreconciledPaymentsAsync(long? distributorId = null);
         Task<ApiResponse<decimal>> GetOrderBalanceAsync(long orderId);
     }
 

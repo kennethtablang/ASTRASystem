@@ -16,6 +16,7 @@ namespace ASTRASystem.DTO.Payment
         public bool IsReconciled { get; set; }
         public DateTime? ReconciledAt { get; set; }
         public string? ReconciledById { get; set; }
+        public string? ReconciledByName { get; set; }
         public string? ReconciliationNotes { get; set; }
     }
 }

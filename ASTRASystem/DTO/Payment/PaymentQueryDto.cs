@@ -6,6 +6,7 @@ namespace ASTRASystem.DTO.Payment
     {
         public long? OrderId { get; set; }
         public long? StoreId { get; set; }
+        public long? DistributorId { get; set; } // Added for filtering
         public PaymentMethod? Method { get; set; }
         public DateTime? RecordedFrom { get; set; }
         public DateTime? RecordedTo { get; set; }
