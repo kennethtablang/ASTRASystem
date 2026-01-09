@@ -14,7 +14,7 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<List<string>>> GetUserRolesAsync(string userId);
         Task<ApiResponse<bool>> DeleteUserAsync(string userId);
         Task<ApiResponse<List<string>>> GetAllRolesAsync();
-        Task<ApiResponse<List<UserListItemDto>>> GetUsersByRoleAsync(string role);
+        Task<ApiResponse<List<UserListItemDto>>> GetUsersByRoleAsync(string role, long? distributorId = null);
         Task<ApiResponse<List<UserListItemDto>>> GetUnapprovedUsersAsync();
     }
 }

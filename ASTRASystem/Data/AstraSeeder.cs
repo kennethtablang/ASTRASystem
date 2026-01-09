@@ -120,6 +120,7 @@ namespace ASTRASystem.Data
                     Address = "Barangay Central, Demo City",
                     Latitude = 14.5995m,
                     Longitude = 120.9842m,
+                    IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
                     CreatedById = adminUser.Id,

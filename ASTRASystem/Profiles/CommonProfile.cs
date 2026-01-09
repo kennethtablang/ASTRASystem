@@ -13,7 +13,8 @@ namespace ASTRASystem.Profiles
 
             // Warehouse -> WarehouseDto
             CreateMap<Warehouse, WarehouseDto>()
-                .ForMember(dest => dest.DistributorName, opt => opt.MapFrom(src => src.Distributor.Name));
+                .ForMember(dest => dest.DistributorName, opt => opt.MapFrom(src => src.Distributor.Name))
+                .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive));
 
             // CreateWarehouseDto -> Warehouse
             CreateMap<CreateWarehouseDto, Warehouse>()

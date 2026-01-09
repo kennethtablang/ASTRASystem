@@ -19,5 +19,7 @@ namespace ASTRASystem.DTO.Common
 
         [Range(-180, 180)]
         public decimal? Longitude { get; set; }
+
+        public bool IsActive { get; set; } = true;
     }
 }

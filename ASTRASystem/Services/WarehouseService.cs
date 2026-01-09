@@ -106,6 +106,7 @@ namespace ASTRASystem.Services
                 warehouse.UpdatedAt = DateTime.UtcNow;
                 warehouse.CreatedById = userId;
                 warehouse.UpdatedById = userId;
+                warehouse.IsActive = request.IsActive;
 
                 _context.Warehouses.Add(warehouse);
                 await _context.SaveChangesAsync();
@@ -168,6 +169,7 @@ namespace ASTRASystem.Services
                 warehouse.Address = request.Address;
                 warehouse.Latitude = request.Latitude;
                 warehouse.Longitude = request.Longitude;
+                warehouse.IsActive = request.IsActive;
                 warehouse.UpdatedAt = DateTime.UtcNow;
                 warehouse.UpdatedById = userId;
 

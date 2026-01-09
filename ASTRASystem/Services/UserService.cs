@@ -373,11 +373,17 @@ namespace ASTRASystem.Services
             }
         }
 
-        public async Task<ApiResponse<List<UserListItemDto>>> GetUsersByRoleAsync(string role)
+        public async Task<ApiResponse<List<UserListItemDto>>> GetUsersByRoleAsync(string role, long? distributorId = null)
         {
             try
             {
                 var usersInRole = await _userManager.GetUsersInRoleAsync(role);
+
+                if (distributorId.HasValue)
+                {
+                    usersInRole = usersInRole.Where(u => u.DistributorId == distributorId.Value).ToList();
+                }
+
                 var userDtos = new List<UserListItemDto>();
 
                 foreach (var user in usersInRole)
