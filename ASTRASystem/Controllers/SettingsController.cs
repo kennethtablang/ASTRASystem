@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ASTRASystem.Controllers
 {
-    [Authorize(Roles = "Admin")]
     [Route("api/[controller]")]
     [ApiController]
     public class SettingsController : ControllerBase
@@ -20,6 +19,7 @@ namespace ASTRASystem.Controllers
             _environment = environment;
         }
 
+        [Authorize] // Allow all authenticated users to read settings
         [HttpGet]
         public async Task<IActionResult> GetSettings()
         {
@@ -27,6 +27,7 @@ namespace ASTRASystem.Controllers
             return Ok(new { success = true, data = settings });
         }
 
+        [Authorize(Roles = "Admin")] // Only Admin can update settings
         [HttpPut]
         public async Task<IActionResult> UpdateSettings([FromBody] Dictionary<string, string> settings)
         {
@@ -46,6 +47,7 @@ namespace ASTRASystem.Controllers
             return Ok(new { success = true, message = "Settings updated successfully" });
         }
 
+        [Authorize(Roles = "Admin")] // Only Admin can upload logo
         [HttpPost("logo")]
         public async Task<IActionResult> UploadLogo(IFormFile file)
         {
