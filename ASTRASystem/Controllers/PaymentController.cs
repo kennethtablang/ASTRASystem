@@ -41,6 +41,15 @@ namespace ASTRASystem.Controllers
         [Authorize(Roles = "Admin,DistributorAdmin,Accountant")]
         public async Task<IActionResult> GetPayments([FromQuery] PaymentQueryDto query)
         {
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    query.DistributorId = userDistributorId;
+                }
+            }
+
             var result = await _paymentService.GetPaymentsAsync(query);
             return Ok(result);
         }
@@ -76,7 +85,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpPost("reconcile")]
-        [Authorize(Roles = "Admin,Accountant")]
+        [Authorize(Roles = "Admin,Accountant,DistributorAdmin")]
         public async Task<IActionResult> ReconcilePayment([FromBody] ReconcilePaymentDto request)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -89,7 +98,17 @@ namespace ASTRASystem.Controllers
 
             _logger.LogInformation("ReconcilePayment: User {UserId} reconciling payment {PaymentId}", userId, request.PaymentId);
 
-            var result = await _paymentService.ReconcilePaymentAsync(request, userId);
+            long? distributorId = null;
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
+            var result = await _paymentService.ReconcilePaymentAsync(request, userId, distributorId);
             if (!result.Success)
             {
                 return BadRequest(result);
@@ -109,10 +128,20 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet("unreconciled")]
-        [Authorize(Roles = "Admin,Accountant")]
+        [Authorize(Roles = "Admin,Accountant,DistributorAdmin")]
         public async Task<IActionResult> GetUnreconciledPayments()
         {
-            var result = await _paymentService.GetUnreconciledPaymentsAsync();
+            long? distributorId = null;
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
+            var result = await _paymentService.GetUnreconciledPaymentsAsync(distributorId);
             return Ok(result);
         }
 
