@@ -22,9 +22,20 @@ namespace ASTRASystem.Controllers
         /// Get dashboard statistics
         /// </summary>
         [HttpGet("dashboard-stats")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> GetDashboardStats([FromQuery] DateTime? from, [FromQuery] DateTime? to)
         {
-            var result = await _reportService.GetDashboardStatsAsync(from, to);
+            long? distributorId = null;
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
+            var result = await _reportService.GetDashboardStatsAsync(from, to, distributorId);
 
             if (result.Success)
                 return Ok(result);
@@ -36,6 +47,7 @@ namespace ASTRASystem.Controllers
         /// Get top selling products
         /// </summary>
         [HttpGet("top-products")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> GetTopSellingProducts([FromQuery] int limit = 5, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null)
         {
             var result = await _reportService.GetTopSellingProductsAsync(limit, from, to);
@@ -46,6 +58,7 @@ namespace ASTRASystem.Controllers
         /// Generate daily sales report (Excel)
         /// </summary>
         [HttpGet("daily-sales")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> GenerateDailySalesReport([FromQuery] DateTime date)
         {
             try
@@ -65,6 +78,7 @@ namespace ASTRASystem.Controllers
         /// Generate delivery performance report (Excel)
         /// </summary>
         [HttpGet("delivery-performance")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> GenerateDeliveryPerformanceReport(
             [FromQuery] DateTime from,
             [FromQuery] DateTime to)
@@ -86,6 +100,7 @@ namespace ASTRASystem.Controllers
         /// Generate agent activity report (Excel)
         /// </summary>
         [HttpGet("agent-activity/{agentId}")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> GenerateAgentActivityReport(
             string agentId,
             [FromQuery] DateTime from,
@@ -108,6 +123,7 @@ namespace ASTRASystem.Controllers
         /// Generate stock movement report (Excel)
         /// </summary>
         [HttpGet("stock-movement/{warehouseId}")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> GenerateStockMovementReport(
             long warehouseId,
             [FromQuery] DateTime from,
@@ -124,6 +140,145 @@ namespace ASTRASystem.Controllers
                 _logger.LogError(ex, "Error generating stock movement report");
                 return BadRequest(new { success = false, message = "Failed to generate report" });
             }
+        }
+
+        /// <summary>
+        /// Get daily sales report with detailed breakdown
+        /// </summary>
+        [HttpGet("sales/daily")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> GetDailySalesReport([FromQuery] DateTime? date)
+        {
+            long? distributorId = null;
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
+            var reportDate = date ?? DateTime.Today;
+            var result = await _reportService.GetDailySalesReportAsync(reportDate, distributorId);
+
+            if (result.Success)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
+
+        /// <summary>
+        /// Get monthly sales report with daily breakdown
+        /// </summary>
+        [HttpGet("sales/monthly")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> GetMonthlySalesReport([FromQuery] int? year, [FromQuery] int? month)
+        {
+            long? distributorId = null;
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
+            var reportYear = year ?? DateTime.Today.Year;
+            var reportMonth = month ?? DateTime.Today.Month;
+            var result = await _reportService.GetMonthlySalesReportAsync(reportYear, reportMonth, distributorId);
+
+            if (result.Success)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
+
+        /// <summary>
+        /// Get quarterly sales report with monthly breakdown
+        /// </summary>
+        [HttpGet("sales/quarterly")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> GetQuarterlySalesReport([FromQuery] int? year, [FromQuery] int? quarter)
+        {
+            long? distributorId = null;
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
+            var reportYear = year ?? DateTime.Today.Year;
+            var reportQuarter = quarter ?? ((DateTime.Today.Month - 1) / 3 + 1);
+            var result = await _reportService.GetQuarterlySalesReportAsync(reportYear, reportQuarter, distributorId);
+
+            if (result.Success)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
+
+        /// <summary>
+        /// Get delivery performance analytics with agent breakdown
+        /// </summary>
+        [HttpGet("delivery-performance-data")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> GetDeliveryPerformanceData(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to)
+        {
+            long? distributorId = null;
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
+            var startDate = from ?? DateTime.Today.AddDays(-30);
+            var endDate = to ?? DateTime.Today;
+            var result = await _reportService.GetDeliveryPerformanceDataAsync(startDate, endDate, distributorId);
+
+            if (result.Success)
+                return Ok(result);
+
+            return BadRequest(result);
+        }
+
+        /// <summary>
+        /// Get fast moving products grouped by category
+        /// </summary>
+        [HttpGet("fast-moving-products")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> GetFastMovingProducts(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] int limit = 5)
+        {
+            long? distributorId = null;
+            if (User.IsInRole("DistributorAdmin"))
+            {
+                var claimDistributorId = User.FindFirst("DistributorId")?.Value;
+                if (long.TryParse(claimDistributorId, out long userDistributorId))
+                {
+                    distributorId = userDistributorId;
+                }
+            }
+
+            var startDate = from ?? DateTime.Today.AddDays(-30);
+            var endDate = to ?? DateTime.Today;
+            var result = await _reportService.GetFastMovingProductsByCategoryAsync(startDate, endDate, distributorId, limit);
+
+            if (result.Success)
+                return Ok(result);
+
+            return BadRequest(result);
         }
     }
 }
