@@ -13,6 +13,7 @@ namespace ASTRASystem.Interfaces
         
         // New Sales Report Methods
         Task<ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>> GetDailySalesReportAsync(DateTime date, long? distributorId = null);
+        Task<ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>> GetWeeklySalesReportAsync(DateTime date, long? distributorId = null);
         Task<ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>> GetMonthlySalesReportAsync(int year, int month, long? distributorId = null);
         Task<ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>> GetQuarterlySalesReportAsync(int year, int quarter, long? distributorId = null);
         

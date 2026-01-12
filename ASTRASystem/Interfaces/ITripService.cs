@@ -29,5 +29,6 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<DeliveryExceptionDto>> ReportDeliveryExceptionAsync(ReportDeliveryExceptionDto request, string userId);
         Task<ApiResponse<bool>> RecordDeliveryAttemptAsync(DeliveryAttemptDto request, string userId);
         Task<ApiResponse<List<DeliveryExceptionDto>>> GetDeliveryExceptionsAsync(long? orderId = null);
+        Task<ApiResponse<List<LocationHistoryDto>>> GetTripLocationHistoryAsync(long tripId);
     }
 }
