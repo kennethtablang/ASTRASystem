@@ -479,5 +479,80 @@ namespace ASTRASystem.Services
                 return ApiResponse<List<DeliveryExceptionDto>>.ErrorResponse("An error occurred");
             }
         }
+
+        public async Task<ApiResponse<List<LocationHistoryDto>>> GetTripLocationHistoryAsync(long tripId)
+        {
+            try
+            {
+                // In a real system, you'd store location updates in a separate table
+                // For now, we'll retrieve from audit logs where Action == "Location updated"
+                var logs = await _context.AuditLogs
+                    .Where(al => al.Action == "Location updated" && al.Meta.Contains($"\"TripId\":{tripId}"))
+                    .AsNoTracking()
+                    .OrderBy(al => al.OccurredAt)
+                    .ToListAsync();
+
+                var history = new List<LocationHistoryDto>();
+                foreach (var log in logs)
+                {
+                    try
+                    {
+                        // Simplified parsing - in production use proper JSON deserialization
+                        var meta = log.Meta;
+                        // Expected format: "TripId":1,"Latitude":123.456,"Longitude":123.456,"Speed":10,"Accuracy":5
+                        
+                        double lat = 0;
+                        double lng = 0;
+                        double? speed = null;
+                        double? accuracy = null;
+
+                        // Basic extraction logic
+                        if (meta.Contains("\"Latitude\":"))
+                        {
+                            var latPart = meta.Split("\"Latitude\":")[1].Split(',')[0].Split('}')[0];
+                            double.TryParse(latPart, out lat);
+                        }
+                        if (meta.Contains("\"Longitude\":"))
+                        {
+                            var lngPart = meta.Split("\"Longitude\":")[1].Split(',')[0].Split('}')[0];
+                            double.TryParse(lngPart, out lng);
+                        }
+                        if (meta.Contains("\"Speed\":"))
+                        {
+                            var speedPart = meta.Split("\"Speed\":")[1].Split(',')[0].Split('}')[0];
+                            if (double.TryParse(speedPart, out double s)) speed = s;
+                        }
+                         if (meta.Contains("\"Accuracy\":"))
+                        {
+                            var accPart = meta.Split("\"Accuracy\":")[1].Split(',')[0].Split('}')[0];
+                            if (double.TryParse(accPart, out double a)) accuracy = a;
+                        }
+
+                        history.Add(new LocationHistoryDto
+                        {
+                            TripId = tripId,
+                            Latitude = lat,
+                            Longitude = lng,
+                            Speed = speed,
+                            Accuracy = accuracy,
+                            Timestamp = log.OccurredAt,
+                            Event = speed > 1 ? "In Transit" : "Stopped" // Basic inference
+                        });
+                    }
+                    catch
+                    {
+                        // Skip malformed logs
+                        continue;
+                    }
+                }
+
+                return ApiResponse<List<LocationHistoryDto>>.SuccessResponse(history);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting trip location history");
+                return ApiResponse<List<LocationHistoryDto>>.ErrorResponse("An error occurred");
+            }
+        }
     }
 }
