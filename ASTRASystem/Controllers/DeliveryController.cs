@@ -155,5 +155,11 @@ namespace ASTRASystem.Controllers
             var result = await _deliveryService.GetDeliveryExceptionsAsync(orderId);
             return Ok(result);
         }
+        [HttpGet("trip/{tripId}/history")]
+        public async Task<IActionResult> GetTripLocationHistory(long tripId)
+        {
+            var result = await _deliveryService.GetTripLocationHistoryAsync(tripId);
+            return Ok(result);
+        }
     }
 }
