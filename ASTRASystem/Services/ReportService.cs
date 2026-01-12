@@ -1,5 +1,6 @@
 ﻿using ASTRASystem.Data;
 using ASTRASystem.DTO.Common;
+using ASTRASystem.DTO;
 using ASTRASystem.Enum;
 using ASTRASystem.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -200,7 +201,7 @@ namespace ASTRASystem.Services
                 return ApiResponse<DashboardStatsDto>.ErrorResponse("An error occurred");
             }
         }
-        public async Task<ApiResponse<List<ASTRASystem.DTO.Reports.ProductSalesDto>>> GetTopSellingProductsAsync(int limit = 5, DateTime? from = null, DateTime? to = null)
+        public async Task<ApiResponse<List<DTO.Reports.ProductSalesDto>>> GetTopSellingProductsAsync(int limit = 5, DateTime? from = null, DateTime? to = null)
         {
             try
             {
@@ -223,7 +224,7 @@ namespace ASTRASystem.Services
 
                 var topProducts = await query
                     .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.Sku, oi.Product.Price, CategoryName = oi.Product.Category.Name })
-                    .Select(g => new ASTRASystem.DTO.Reports.ProductSalesDto
+                    .Select(g => new DTO.Reports.ProductSalesDto
                     {
                         Id = g.Key.ProductId,
                         Name = g.Key.Name,
@@ -237,16 +238,16 @@ namespace ASTRASystem.Services
                     .Take(limit)
                     .ToListAsync();
 
-                return ApiResponse<List<ASTRASystem.DTO.Reports.ProductSalesDto>>.SuccessResponse(topProducts);
+                return ApiResponse<List<DTO.Reports.ProductSalesDto>>.SuccessResponse(topProducts);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting top selling products");
-                return ApiResponse<List<ASTRASystem.DTO.Reports.ProductSalesDto>>.ErrorResponse("An error occurred getting top products");
+                return ApiResponse<List<DTO.Reports.ProductSalesDto>>.ErrorResponse("An error occurred getting top products");
             }
         }
 
-        public async Task<ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>> GetDailySalesReportAsync(DateTime date, long? distributorId = null)
+        public async Task<ApiResponse<DTO.Reports.SalesReportDto>> GetDailySalesReportAsync(DateTime date, long? distributorId = null)
         {
             try
             {
@@ -275,7 +276,7 @@ namespace ASTRASystem.Services
                 var totalRevenue = orders.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.Total);
                 var previousRevenue = previousOrders.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.Total);
 
-                var report = new ASTRASystem.DTO.Reports.SalesReportDto
+                var report = new DTO.Reports.SalesReportDto
                 {
                     ReportType = "Daily",
                     StartDate = startDate,
@@ -285,9 +286,9 @@ namespace ASTRASystem.Services
                     AverageOrderValue = orders.Count > 0 ? totalRevenue / orders.Count : 0,
                     PreviousPeriodRevenue = previousRevenue,
                     RevenueGrowthPercentage = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0,
-                    SalesItems = new List<ASTRASystem.DTO.Reports.SalesReportItemDto>
+                    SalesItems = new List<DTO.Reports.SalesReportItemDto>
                     {
-                        new ASTRASystem.DTO.Reports.SalesReportItemDto
+                        new DTO.Reports.SalesReportItemDto
                         {
                             Date = startDate,
                             Revenue = totalRevenue,
@@ -300,7 +301,7 @@ namespace ASTRASystem.Services
                     },
                     TopStores = orders
                         .GroupBy(o => new { o.StoreId, o.Store.Name })
-                        .Select(g => new ASTRASystem.DTO.Reports.TopStoreDto
+                        .Select(g => new DTO.Reports.TopStoreDto
                         {
                             StoreId = g.Key.StoreId,
                             StoreName = g.Key.Name,
@@ -312,16 +313,99 @@ namespace ASTRASystem.Services
                         .ToList()
                 };
 
-                return ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>.SuccessResponse(report);
+                return ApiResponse<DTO.Reports.SalesReportDto>.SuccessResponse(report);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating daily sales report");
-                return ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>.ErrorResponse("An error occurred generating daily sales report");
+                return ApiResponse<DTO.Reports.SalesReportDto>.ErrorResponse("An error occurred generating daily sales report");
             }
         }
 
-        public async Task<ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>> GetMonthlySalesReportAsync(int year, int month, long? distributorId = null)
+        public async Task<ApiResponse<DTO.Reports.SalesReportDto>> GetWeeklySalesReportAsync(DateTime date, long? distributorId = null)
+        {
+            try
+            {
+                // Calculate start and end of week (Sunday to Saturday)
+                var diff = (7 + (date.DayOfWeek - DayOfWeek.Sunday)) % 7;
+                var startDate = date.AddDays(-1 * diff).Date;
+                var endDate = startDate.AddDays(7);
+                
+                var previousStartDate = startDate.AddDays(-7);
+                var previousEndDate = startDate;
+
+                var ordersQuery = _context.Orders
+                    .Include(o => o.Store)
+                    .Include(o => o.Items)
+                    .AsNoTracking();
+
+                if (distributorId.HasValue)
+                {
+                    ordersQuery = ordersQuery.Where(o => o.DistributorId == distributorId.Value);
+                }
+
+                var orders = await ordersQuery
+                    .Where(o => o.CreatedAt >= startDate && o.CreatedAt < endDate)
+                    .ToListAsync();
+
+                var previousOrders = await ordersQuery
+                    .Where(o => o.CreatedAt >= previousStartDate && o.CreatedAt < previousEndDate)
+                    .ToListAsync();
+
+                var totalRevenue = orders.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.Total);
+                var previousRevenue = previousOrders.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.Total);
+
+                // Group by day for weekly breakdown
+                var dailyBreakdown = orders
+                    .GroupBy(o => o.CreatedAt.Date)
+                    .Select(g => new DTO.Reports.SalesReportItemDto
+                    {
+                        Date = g.Key,
+                        Revenue = g.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.Total),
+                        OrderCount = g.Count(),
+                        DeliveredOrderCount = g.Count(o => o.Status == OrderStatus.Delivered),
+                        PendingOrderCount = g.Count(o => o.Status == OrderStatus.Pending),
+                        AverageOrderValue = g.Count() > 0 ? g.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.Total) / g.Count() : 0,
+                        GrowthPercentage = 0
+                    })
+                    .OrderBy(s => s.Date)
+                    .ToList();
+
+                var report = new DTO.Reports.SalesReportDto
+                {
+                    ReportType = "Weekly",
+                    StartDate = startDate,
+                    EndDate = endDate.AddDays(-1), // End date for display is inclusive
+                    TotalRevenue = totalRevenue,
+                    TotalOrders = orders.Count,
+                    AverageOrderValue = orders.Count > 0 ? totalRevenue / orders.Count : 0,
+                    PreviousPeriodRevenue = previousRevenue,
+                    RevenueGrowthPercentage = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0,
+                    SalesItems = dailyBreakdown,
+                    TopStores = orders
+                        .GroupBy(o => new { o.StoreId, o.Store.Name })
+                        .Select(g => new DTO.Reports.TopStoreDto
+                        {
+                            StoreId = g.Key.StoreId,
+                            StoreName = g.Key.Name,
+                            Revenue = g.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.Total),
+                            OrderCount = g.Count()
+                        })
+                        .OrderByDescending(s => s.Revenue)
+                        .Take(5)
+                        .ToList()
+                };
+
+                return ApiResponse<DTO.Reports.SalesReportDto>.SuccessResponse(report);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating weekly sales report");
+                return ApiResponse<DTO.Reports.SalesReportDto>.ErrorResponse("An error occurred generating weekly sales report");
+            }
+        }
+
+        public async Task<ApiResponse<DTO.Reports.SalesReportDto>> GetMonthlySalesReportAsync(int year, int month, long? distributorId = null)
         {
             try
             {
@@ -354,7 +438,7 @@ namespace ASTRASystem.Services
                 // Group by day for monthly breakdown
                 var dailySales = orders
                     .GroupBy(o => o.CreatedAt.Date)
-                    .Select(g => new ASTRASystem.DTO.Reports.SalesReportItemDto
+                    .Select(g => new DTO.Reports.SalesReportItemDto
                     {
                         Date = g.Key,
                         Revenue = g.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.Total),
@@ -367,7 +451,7 @@ namespace ASTRASystem.Services
                     .OrderBy(s => s.Date)
                     .ToList();
 
-                var report = new ASTRASystem.DTO.Reports.SalesReportDto
+                var report = new DTO.Reports.SalesReportDto
                 {
                     ReportType = "Monthly",
                     StartDate = startDate,
@@ -380,7 +464,7 @@ namespace ASTRASystem.Services
                     SalesItems = dailySales,
                     TopStores = orders
                         .GroupBy(o => new { o.StoreId, o.Store.Name })
-                        .Select(g => new ASTRASystem.DTO.Reports.TopStoreDto
+                        .Select(g => new DTO.Reports.TopStoreDto
                         {
                             StoreId = g.Key.StoreId,
                             StoreName = g.Key.Name,
@@ -392,22 +476,22 @@ namespace ASTRASystem.Services
                         .ToList()
                 };
 
-                return ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>.SuccessResponse(report);
+                return ApiResponse<DTO.Reports.SalesReportDto>.SuccessResponse(report);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating monthly sales report");
-                return ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>.ErrorResponse("An error occurred generating monthly sales report");
+                return ApiResponse<DTO.Reports.SalesReportDto>.ErrorResponse("An error occurred generating monthly sales report");
             }
         }
 
-        public async Task<ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>> GetQuarterlySalesReportAsync(int year, int quarter, long? distributorId = null)
+        public async Task<ApiResponse<DTO.Reports.SalesReportDto>> GetQuarterlySalesReportAsync(int year, int quarter, long? distributorId = null)
         {
             try
             {
                 if (quarter < 1 || quarter > 4)
                 {
-                    return ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>.ErrorResponse("Quarter must be between 1 and 4");
+                    return ApiResponse<DTO.Reports.SalesReportDto>.ErrorResponse("Quarter must be between 1 and 4");
                 }
 
                 var startMonth = (quarter - 1) * 3 + 1;
@@ -440,7 +524,7 @@ namespace ASTRASystem.Services
                 // Group by month for quarterly breakdown
                 var monthlySales = orders
                     .GroupBy(o => new DateTime(o.CreatedAt.Year, o.CreatedAt.Month, 1))
-                    .Select(g => new ASTRASystem.DTO.Reports.SalesReportItemDto
+                    .Select(g => new DTO.Reports.SalesReportItemDto
                     {
                         Date = g.Key,
                         Revenue = g.Where(o => o.Status == OrderStatus.Delivered).Sum(o => o.Total),
@@ -453,7 +537,7 @@ namespace ASTRASystem.Services
                     .OrderBy(s => s.Date)
                     .ToList();
 
-                var report = new ASTRASystem.DTO.Reports.SalesReportDto
+                var report = new DTO.Reports.SalesReportDto
                 {
                     ReportType = "Quarterly",
                     StartDate = startDate,
@@ -466,7 +550,7 @@ namespace ASTRASystem.Services
                     SalesItems = monthlySales,
                     TopStores = orders
                         .GroupBy(o => new { o.StoreId, o.Store.Name })
-                        .Select(g => new ASTRASystem.DTO.Reports.TopStoreDto
+                        .Select(g => new DTO.Reports.TopStoreDto
                         {
                             StoreId = g.Key.StoreId,
                             StoreName = g.Key.Name,
@@ -478,16 +562,16 @@ namespace ASTRASystem.Services
                         .ToList()
                 };
 
-                return ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>.SuccessResponse(report);
+                return ApiResponse<DTO.Reports.SalesReportDto>.SuccessResponse(report);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating quarterly sales report");
-                return ApiResponse<ASTRASystem.DTO.Reports.SalesReportDto>.ErrorResponse("An error occurred generating quarterly sales report");
+                return ApiResponse<DTO.Reports.SalesReportDto>.ErrorResponse("An error occurred generating quarterly sales report");
             }
         }
 
-        public async Task<ApiResponse<ASTRASystem.DTO.Reports.DeliveryPerformanceDto>> GetDeliveryPerformanceDataAsync(DateTime from, DateTime to, long? distributorId = null)
+        public async Task<ApiResponse<DTO.Reports.DeliveryPerformanceDto>> GetDeliveryPerformanceDataAsync(DateTime from, DateTime to, long? distributorId = null)
         {
             try
             {
@@ -547,7 +631,7 @@ namespace ASTRASystem.Services
                     })
                     .ToList();
 
-                var report = new ASTRASystem.DTO.Reports.DeliveryPerformanceDto
+                var report = new DTO.Reports.DeliveryPerformanceDto
                 {
                     StartDate = from,
                     EndDate = to,
@@ -558,7 +642,7 @@ namespace ASTRASystem.Services
                     AverageDeliveryTimeHours = averageDeliveryTime,
                     PendingDeliveries = orders.Count(o => o.Status == OrderStatus.Pending),
                     InProgressDeliveries = orders.Count(o => o.Status == OrderStatus.InTransit || o.Status == OrderStatus.Dispatched || o.Status == OrderStatus.AtStore),
-                    AgentPerformance = agentPerformance.Select(a => new ASTRASystem.DTO.Reports.DeliveryAgentPerformanceDto
+                    AgentPerformance = agentPerformance.Select(a => new DTO.Reports.DeliveryAgentPerformanceDto
                     {
                         AgentId = a.AgentId ?? "Unknown",
                         AgentName = a.AgentId ?? "Unknown Agent", // In a real system, lookup agent name from Users table
@@ -569,16 +653,16 @@ namespace ASTRASystem.Services
                     }).ToList()
                 };
 
-                return ApiResponse<ASTRASystem.DTO.Reports.DeliveryPerformanceDto>.SuccessResponse(report);
+                return ApiResponse<DTO.Reports.DeliveryPerformanceDto>.SuccessResponse(report);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting delivery performance data");
-                return ApiResponse<ASTRASystem.DTO.Reports.DeliveryPerformanceDto>.ErrorResponse("An error occurred getting delivery performance data");
+                return ApiResponse<DTO.Reports.DeliveryPerformanceDto>.ErrorResponse("An error occurred getting delivery performance data");
             }
         }
 
-        public async Task<ApiResponse<List<ASTRASystem.DTO.Reports.FastMovingProductsByCategoryDto>>> GetFastMovingProductsByCategoryAsync(
+        public async Task<ApiResponse<List<DTO.Reports.FastMovingProductsByCategoryDto>>> GetFastMovingProductsByCategoryAsync(
             DateTime from, DateTime to, long? distributorId = null, int topProductsPerCategory = 5)
         {
             try
@@ -605,7 +689,7 @@ namespace ASTRASystem.Services
                 // Group by category
                 var categorySales = orderItems
                     .GroupBy(oi => new { oi.Product.CategoryId, oi.Product.Category.Name })
-                    .Select(categoryGroup => new ASTRASystem.DTO.Reports.FastMovingProductsByCategoryDto
+                    .Select(categoryGroup => new DTO.Reports.FastMovingProductsByCategoryDto
                     {
                         CategoryName = categoryGroup.Key.Name,
                         CategoryRevenue = categoryGroup.Sum(oi => oi.Quantity * oi.UnitPrice),
@@ -615,7 +699,7 @@ namespace ASTRASystem.Services
                             : 0,
                         TopProducts = categoryGroup
                             .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.Sku, oi.Product.Price })
-                            .Select(productGroup => new ASTRASystem.DTO.Reports.ProductSalesDto
+                            .Select(productGroup => new DTO.Reports.ProductSalesDto
                             {
                                 Id = productGroup.Key.ProductId,
                                 Name = productGroup.Key.Name,
@@ -632,12 +716,12 @@ namespace ASTRASystem.Services
                     .OrderByDescending(c => c.CategoryRevenue)
                     .ToList();
 
-                return ApiResponse<List<ASTRASystem.DTO.Reports.FastMovingProductsByCategoryDto>>.SuccessResponse(categorySales);
+                return ApiResponse<List<DTO.Reports.FastMovingProductsByCategoryDto>>.SuccessResponse(categorySales);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting fast moving products by category");
-                return ApiResponse<List<ASTRASystem.DTO.Reports.FastMovingProductsByCategoryDto>>.ErrorResponse("An error occurred getting fast moving products");
+                return ApiResponse<List<DTO.Reports.FastMovingProductsByCategoryDto>>.ErrorResponse("An error occurred getting fast moving products");
             }
         }
     }
