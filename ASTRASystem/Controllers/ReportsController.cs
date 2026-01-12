@@ -54,6 +54,19 @@ namespace ASTRASystem.Controllers
             return Ok(result);
         }
 
+
+
+        /// <summary>
+        /// Get weekly sales report with daily breakdown
+        /// </summary>
+        [HttpGet("sales/weekly")]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> GetWeeklySalesReport([FromQuery] DateTime date, [FromQuery] long? distributorId = null)
+        {
+            var result = await _reportService.GetWeeklySalesReportAsync(date, distributorId);
+            return Ok(result);
+        }
+
         /// <summary>
         /// Generate daily sales report (Excel)
         /// </summary>
@@ -147,9 +160,8 @@ namespace ASTRASystem.Controllers
         /// </summary>
         [HttpGet("sales/daily")]
         [Authorize(Roles = "Admin,DistributorAdmin")]
-        public async Task<IActionResult> GetDailySalesReport([FromQuery] DateTime? date)
+        public async Task<IActionResult> GetDailySalesReport([FromQuery] DateTime? date, [FromQuery] long? distributorId = null)
         {
-            long? distributorId = null;
             if (User.IsInRole("DistributorAdmin"))
             {
                 var claimDistributorId = User.FindFirst("DistributorId")?.Value;
