@@ -200,5 +200,27 @@ namespace ASTRASystem.Controllers
             }
             return Ok(result);
         }
+        [HttpPost("{id}/optimize")]
+        [Authorize(Roles = "Admin,DistributorAdmin,Dispatcher")]
+        public async Task<IActionResult> OptimizeTrip(long id)
+        {
+            // FIXED: Use ClaimTypes.NameIdentifier
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("OptimizeTrip: User ID not found in claims");
+                return Unauthorized(new { success = false, message = "User authentication failed" });
+            }
+
+            _logger.LogInformation("OptimizeTrip: User {UserId} optimizing trip {TripId}", userId, id);
+
+            var result = await _tripService.OptimizeTripRouteAsync(id, userId);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
     }
 }
