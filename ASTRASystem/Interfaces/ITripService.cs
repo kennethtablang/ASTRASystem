@@ -17,6 +17,7 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<byte[]>> GenerateTripManifestPdfAsync(long tripId);
         Task<ApiResponse<List<TripDto>>> GetActiveTripsAsync(string? dispatcherId = null);
         Task<ApiResponse<List<long>>> SuggestTripSequenceAsync(List<long> orderIds);
+        Task<ApiResponse<bool>> OptimizeTripRouteAsync(long tripId, string userId);
     }
 
     public interface IDeliveryService

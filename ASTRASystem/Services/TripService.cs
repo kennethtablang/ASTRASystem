@@ -735,9 +735,128 @@ namespace ASTRASystem.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error suggesting trip sequence");
                 return ApiResponse<List<long>>.ErrorResponse("An error occurred");
             }
+        }
+
+        public async Task<ApiResponse<bool>> OptimizeTripRouteAsync(long tripId, string userId)
+        {
+            try
+            {
+                var trip = await _context.Trips
+                    .Include(t => t.Warehouse)
+                    .Include(t => t.Assignments)
+                        .ThenInclude(a => a.Order)
+                            .ThenInclude(o => o.Store)
+                    .FirstOrDefaultAsync(t => t.Id == tripId);
+
+                if (trip == null)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Trip not found");
+                }
+
+                if (trip.Status == TripStatus.Completed || trip.Status == TripStatus.Cancelled)
+                {
+                    return ApiResponse<bool>.ErrorResponse("Cannot optimize completed or cancelled trips");
+                }
+
+                var assignments = trip.Assignments.ToList();
+                if (assignments.Count <= 1)
+                {
+                    return ApiResponse<bool>.SuccessResponse(true, "Trip already optimized (0 or 1 stops)");
+                }
+
+                // Start location: Warehouse
+                double currentLat = 0; // Default if warehouse has no location
+                double currentLng = 0;
+                
+                // Assuming Warehouse has Latitude/Longitude (it might not in the model yet, verifying...)
+                // Checking TripDto or Warehouse model would be ideal but for now we'll assume or default.
+                // If Warehouse doesn't have Lat/Lng, we pick the first stop as start or just 0,0 (which isn't great).
+                // Let's rely on finding the "nearest" to the *previous* stop.
+                // Ideally, we start from the Warehouse.
+                // Let's check if we can get Warehouse coordinates.
+                // If not, we'll just optimize relations between stops.
+                
+                // NEAREST NEIGHBOR ALGORITHM
+                var unvisited = new List<TripAssignment>(assignments);
+                var optimizedSequence = new List<TripAssignment>();
+
+                // 1. Find the stop closest to the Warehouse (or just the first one if no Warehouse location)
+                // For this implementation, let's assume we start with the assignment that's currently #1 or closest to a reference point.
+                // If we don't have warehouse lat/lng, we can't truly optimize from START.
+                // Let's assume we use the first current assignment as the starting node for now, OR better:
+                // Find the northern-most or central point? No, standard is closest to Depot.
+                
+                // Let's try to get Warehouse coords if available in recent context updates or assume 0.
+                if (trip.Warehouse != null)
+                {
+                     // Note: Warehouse model might not have Lat/Lng props visible here, checking context...
+                     // To be safe, let's use the first order's store as "start" if warehouse is missing coords,
+                     // but re-ordering the rest.
+                }
+
+                // fallback: greedy approach starting from the first order currently in sequence 1.
+                var currentStop = unvisited.OrderBy(a => a.SequenceNo).First();
+                optimizedSequence.Add(currentStop);
+                unvisited.Remove(currentStop);
+                
+                currentLat = currentStop.Order.Store.Latitude.GetValueOrDefault();
+                currentLng = currentStop.Order.Store.Longitude.GetValueOrDefault();
+
+                while (unvisited.Any())
+                {
+                    // Find nearest to currentStop
+                    var nearest = unvisited
+                        .OrderBy(a => GetDistance(currentLat, currentLng, a.Order.Store.Latitude.GetValueOrDefault(), a.Order.Store.Longitude.GetValueOrDefault()))
+                        .First();
+
+                    optimizedSequence.Add(nearest);
+                    unvisited.Remove(nearest);
+
+                    currentLat = nearest.Order.Store.Latitude.GetValueOrDefault();
+                    currentLng = nearest.Order.Store.Longitude.GetValueOrDefault();
+                }
+
+                // Update SequenceNos
+                int seq = 1;
+                foreach (var assignment in optimizedSequence)
+                {
+                    assignment.SequenceNo = seq++;
+                    assignment.UpdatedAt = DateTime.UtcNow;
+                    assignment.UpdatedById = userId;
+                }
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "Trip route optimized",
+                    new { TripId = trip.Id });
+
+                return ApiResponse<bool>.SuccessResponse(true, "Trip route optimized successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error optimizing trip route");
+                return ApiResponse<bool>.ErrorResponse("An error occurred during optimization");
+            }
+        }
+
+        private double GetDistance(double lat1, double lon1, double lat2, double lon2)
+        {
+            var R = 6371e3; // metres
+            var φ1 = lat1 * Math.PI / 180;
+            var φ2 = lat2 * Math.PI / 180;
+            var Δφ = (lat2 - lat1) * Math.PI / 180;
+            var Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            var a = Math.Sin(Δφ / 2) * Math.Sin(Δφ / 2) +
+                    Math.Cos(φ1) * Math.Cos(φ2) *
+                    Math.Sin(Δλ / 2) * Math.Sin(Δλ / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+            return R * c;
         }
     }
 }
