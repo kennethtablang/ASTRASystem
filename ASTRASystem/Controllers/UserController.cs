@@ -20,7 +20,7 @@ namespace ASTRASystem.Controllers
             _logger = logger;
         }
 
-        [HttpGet("me")]
+        [HttpGet("me", Order = -1)]
         public async Task<IActionResult> GetCurrentUser()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
