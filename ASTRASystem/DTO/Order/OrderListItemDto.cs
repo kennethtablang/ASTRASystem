@@ -7,6 +7,8 @@ namespace ASTRASystem.DTO.Order
         public long Id { get; set; }
         public long StoreId { get; set; }
         public string StoreName { get; set; }
+        public string? StoreAddressLine1 { get; set; }
+        public string? StoreAddressLine2 { get; set; }
         public string StoreBarangay { get; set; }
         public string StoreCity { get; set; }
         public string? AgentId { get; set; }
