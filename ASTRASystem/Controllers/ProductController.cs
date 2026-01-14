@@ -62,6 +62,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,DistributorAdmin,Agent,Dispatcher")]
         public async Task<IActionResult> GetProducts([FromQuery] ProductQueryDto query)
         {
             var result = await _productService.GetProductsAsync(query);
@@ -69,6 +70,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet("lookup")]
+        [Authorize(Roles = "Admin,DistributorAdmin,Agent,Dispatcher")]
         public async Task<IActionResult> GetProductsForLookup([FromQuery] string? searchTerm = null)
         {
             var result = await _productService.GetProductsForLookupAsync(searchTerm);
@@ -164,6 +166,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet("categories")]
+        [Authorize(Roles = "Admin,DistributorAdmin,Agent,Dispatcher")]
         public async Task<IActionResult> GetCategories()
         {
             var result = await _productService.GetProductCategoriesAsync();
