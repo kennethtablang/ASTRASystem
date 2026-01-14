@@ -12,6 +12,8 @@ namespace ASTRASystem.Profiles
             // Order -> OrderDto
             CreateMap<Order, OrderDto>()
                 .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store.Name))
+                .ForMember(dest => dest.StoreAddressLine1, opt => opt.MapFrom(src => src.Store.AddressLine1))
+                .ForMember(dest => dest.StoreAddressLine2, opt => opt.MapFrom(src => src.Store.AddressLine2))
                 .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Store.Barangay != null ? src.Store.Barangay.Name : null))
                 .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Store.City != null ? src.Store.City.Name : null))
                 .ForMember(dest => dest.AgentName, opt => opt.Ignore())
@@ -26,6 +28,8 @@ namespace ASTRASystem.Profiles
             // Order -> OrderListItemDto
             CreateMap<Order, OrderListItemDto>()
                 .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store.Name))
+                .ForMember(dest => dest.StoreAddressLine1, opt => opt.MapFrom(src => src.Store.AddressLine1))
+                .ForMember(dest => dest.StoreAddressLine2, opt => opt.MapFrom(src => src.Store.AddressLine2))
                 .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Store.Barangay != null ? src.Store.Barangay.Name : null))
                 .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Store.City != null ? src.Store.City.Name : null))
                 .ForMember(dest => dest.AgentName, opt => opt.Ignore())

@@ -24,8 +24,10 @@ namespace ASTRASystem.Profiles
             // TripAssignment -> TripAssignmentDto
             CreateMap<TripAssignment, TripAssignmentDto>()
                 .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Order.Store.Name))
-                .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Order.Store.Barangay))
-                .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Order.Store.City))
+                .ForMember(dest => dest.StoreAddressLine1, opt => opt.MapFrom(src => src.Order.Store.AddressLine1))
+                .ForMember(dest => dest.StoreAddressLine2, opt => opt.MapFrom(src => src.Order.Store.AddressLine2))
+                .ForMember(dest => dest.StoreBarangay, opt => opt.MapFrom(src => src.Order.Store.Barangay != null ? src.Order.Store.Barangay.Name : null))
+                .ForMember(dest => dest.StoreCity, opt => opt.MapFrom(src => src.Order.Store.City != null ? src.Order.Store.City.Name : null))
                 .ForMember(dest => dest.OrderTotal, opt => opt.MapFrom(src => src.Order.Total))
                 .ForMember(dest => dest.IsPaid, opt => opt.MapFrom(src => src.Order.IsPaid))
                 .ForMember(dest => dest.TotalPaid, opt => opt.MapFrom(src => src.Order.TotalPaid))
