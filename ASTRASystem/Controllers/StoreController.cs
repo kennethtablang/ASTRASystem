@@ -32,6 +32,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,DistributorAdmin,Agent,Dispatcher")]
         public async Task<IActionResult> GetStores([FromQuery] StoreQueryDto query)
         {
             var result = await _storeService.GetStoresAsync(query);
@@ -39,6 +40,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet("lookup")]
+        [Authorize(Roles = "Admin,DistributorAdmin,Agent,Dispatcher")]
         public async Task<IActionResult> GetStoresForLookup([FromQuery] string? searchTerm = null, [FromQuery] long? cityId = null, [FromQuery] long? barangayId = null)
         {
             var result = await _storeService.GetStoresForLookupAsync(searchTerm, cityId, barangayId);
