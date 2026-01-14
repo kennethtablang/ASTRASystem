@@ -7,6 +7,8 @@ namespace ASTRASystem.DTO.Trip
         public long Id { get; set; }
         public long OrderId { get; set; }
         public string StoreName { get; set; }
+        public string? StoreAddressLine1 { get; set; }
+        public string? StoreAddressLine2 { get; set; }
         public string? StoreBarangay { get; set; }
         public string? StoreCity { get; set; }
         public int SequenceNo { get; set; }
