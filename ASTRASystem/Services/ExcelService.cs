@@ -49,7 +49,7 @@ namespace ASTRASystem.Services
                     worksheet.Cell(row, 6).Value = order.Priority ? "Yes" : "No";
                     worksheet.Cell(row, 7).Value = order.Total;
                     worksheet.Cell(row, 8).Value = order.Items?.Count ?? 0;
-                    worksheet.Cell(row, 9).Value = order.CreatedAt.ToString("yyyy-MM-dd HH:mm");
+                    worksheet.Cell(row, 9).Value = order.CreatedAt.ToString("yyyy-MM-dd hh:mm tt");
                     worksheet.Cell(row, 10).Value = order.ScheduledFor?.ToString("yyyy-MM-dd") ?? "";
                     row++;
                 }
@@ -98,7 +98,7 @@ namespace ASTRASystem.Services
                     worksheet.Cell(row, 3).Value = payment.Amount;
                     worksheet.Cell(row, 4).Value = payment.Method.ToString();
                     worksheet.Cell(row, 5).Value = payment.Reference ?? "";
-                    worksheet.Cell(row, 6).Value = payment.RecordedAt.ToString("yyyy-MM-dd HH:mm");
+                    worksheet.Cell(row, 6).Value = payment.RecordedAt.ToString("yyyy-MM-dd hh:mm tt");
                     worksheet.Cell(row, 7).Value = payment.RecordedById ?? "";
                     row++;
                 }
