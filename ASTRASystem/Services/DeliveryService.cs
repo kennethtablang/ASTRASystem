@@ -218,7 +218,7 @@ namespace ASTRASystem.Services
                         HasException = hasException
                     });
 
-                    if (order.Status == OrderStatus.Delivered || order.Status == OrderStatus.AtStore)
+                    if (order.Status == OrderStatus.Delivered || order.Status == OrderStatus.AtStore || order.Status == OrderStatus.Returned)
                     {
                         tracking.CompletedStops++;
                     }
@@ -272,7 +272,7 @@ namespace ASTRASystem.Services
                             UploadedAt = DateTime.UtcNow,
                             Lat = request.Latitude,
                             Lng = request.Longitude,
-                            Notes = request.Notes,
+                            Notes = request.Notes ?? string.Empty,
                             CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow,
                             CreatedById = userId,
@@ -311,7 +311,7 @@ namespace ASTRASystem.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error marking order as delivered");
-                return ApiResponse<bool>.ErrorResponse("An error occurred");
+                return ApiResponse<bool>.ErrorResponse($"An error occurred: {ex.Message} {ex.InnerException?.Message}");
             }
         }
 
@@ -376,6 +376,13 @@ namespace ASTRASystem.Services
                     ReportedByName = user?.FullName,
                     ReportedAt = DateTime.UtcNow
                 };
+
+                // Update order status to Returned (or specific exception status)
+                order.Status = OrderStatus.Returned;
+                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedById = userId;
+
+                await _context.SaveChangesAsync();
 
                 return ApiResponse<DeliveryExceptionDto>.SuccessResponse(
                     exceptionDto,
@@ -458,17 +465,47 @@ namespace ASTRASystem.Services
                 {
                     var user = await _userManager.FindByIdAsync(log.UserId);
 
-                    // Parse metadata (simplified - in real system use proper deserialization)
-                    exceptions.Add(new DeliveryExceptionDto
+                    try
                     {
-                        Id = log.Id,
-                        OrderId = orderId ?? 0, // Would parse from Meta
-                        ExceptionType = "Exception", // Would parse from Meta
-                        Description = log.Meta,
-                        ReportedById = log.UserId,
-                        ReportedByName = user?.FullName,
-                        ReportedAt = log.OccurredAt
-                    });
+                        // Parse metadata JSON to extract individual fields
+                        using var doc = System.Text.Json.JsonDocument.Parse(log.Meta);
+                        var root = doc.RootElement;
+
+                        var parsedOrderId = root.TryGetProperty("OrderId", out var orderIdElement) 
+                            ? orderIdElement.GetInt64() 
+                            : 0;
+                        var exceptionType = root.TryGetProperty("ExceptionType", out var typeElement)
+                            ? typeElement.GetString()
+                            : "Unknown";
+                        var description = root.TryGetProperty("Description", out var descElement)
+                            ? descElement.GetString()
+                            : "No description provided";
+
+                        exceptions.Add(new DeliveryExceptionDto
+                        {
+                            Id = log.Id,
+                            OrderId = parsedOrderId,
+                            ExceptionType = exceptionType ?? "Unknown",
+                            Description = description ?? "No description provided",
+                            ReportedById = log.UserId,
+                            ReportedByName = user?.FullName,
+                            ReportedAt = log.OccurredAt
+                        });
+                    }
+                    catch (System.Text.Json.JsonException)
+                    {
+                        // If JSON parsing fails, fallback to basic exception
+                        exceptions.Add(new DeliveryExceptionDto
+                        {
+                            Id = log.Id,
+                            OrderId = orderId ?? 0,
+                            ExceptionType = "Exception",
+                            Description = "Error parsing exception details",
+                            ReportedById = log.UserId,
+                            ReportedByName = user?.FullName,
+                            ReportedAt = log.OccurredAt
+                        });
+                    }
                 }
 
                 return ApiResponse<List<DeliveryExceptionDto>>.SuccessResponse(exceptions);
