@@ -190,7 +190,7 @@ namespace ASTRASystem.Services
                             {
                                 row.RelativeItem().Text($"Total Stops: {trip.Assignments?.Count ?? 0}").Bold();
                                 row.RelativeItem().Text($"Status: {trip.Status}").Bold();
-                                row.RelativeItem().Text($"Departure: {trip.DepartureAt?.ToString("HH:mm") ?? "N/A"}").Bold();
+                                row.RelativeItem().Text($"Departure: {trip.DepartureAt?.ToString("hh:mm tt") ?? "N/A"}").Bold();
                             });
 
                             // Stops Table
