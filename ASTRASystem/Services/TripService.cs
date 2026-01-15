@@ -259,13 +259,37 @@ namespace ASTRASystem.Services
                     "TripAssigned",
                     $"Trip #{trip.Id} has been assigned to you with {request.OrderIds.Count} order(s)");
 
-                // Send email to dispatcher
+                // Send email to dispatcher with trip manifest attachment
                 if (dispatcher != null && !string.IsNullOrEmpty(dispatcher.Email))
                 {
-                    await _emailService.SendEmailAsync(
-                        dispatcher.Email,
-                        $"New Trip Assignment - Trip #{trip.Id}",
-                        $@"
+                    // Generate trip manifest PDF
+                    // Need to reload trip with all necessary includes for PDF generation
+                    var tripForPdf = await _context.Trips
+                        .Include(t => t.Warehouse)
+                        .Include(t => t.Assignments)
+                            .ThenInclude(a => a.Order)
+                                .ThenInclude(o => o.Store)
+                        .Include(t => t.Assignments)
+                            .ThenInclude(a => a.Order)
+                                .ThenInclude(o => o.Items)
+                                    .ThenInclude(i => i.Product)
+                        .FirstOrDefaultAsync(t => t.Id == trip.Id);
+
+                    byte[] manifestPdf = null;
+                    try
+                    {
+                        if (tripForPdf != null)
+                        {
+                            manifestPdf = _pdfService.GenerateTripManifestPdf(tripForPdf);
+                        }
+                    }
+                    catch (Exception pdfEx)
+                    {
+                        _logger.LogError(pdfEx, "Error generating trip manifest PDF for trip {TripId}", trip.Id);
+                        // Continue without PDF attachment
+                    }
+
+                    var emailBody = $@"
                         <h2>New Trip Assigned</h2>
                         <p>Hello {dispatcher.FirstName},</p>
                         <p>A new trip has been assigned to you.</p>
@@ -275,8 +299,27 @@ namespace ASTRASystem.Services
                             <li><strong>Vehicle:</strong> {trip.Vehicle}</li>
                             <li><strong>Departure:</strong> {trip.DepartureAt:MMM dd, yyyy h:mm tt}</li>
                         </ul>
-                        <p>Please log in to the application to view full details.</p>
-                        ");
+                        <p>The trip manifest is attached to this email for your reference.</p>
+                        <p>Please log in to the application to view full details and start your trip.</p>
+                        ";
+
+                    if (manifestPdf != null && manifestPdf.Length > 0)
+                    {
+                        await _emailService.SendEmailAsync(
+                            dispatcher.Email,
+                            $"New Trip Assignment - Trip #{trip.Id}",
+                            emailBody,
+                            manifestPdf,
+                            $"Trip_Manifest_{trip.Id}.pdf");
+                    }
+                    else
+                    {
+                        // Fallback to email without attachment if PDF generation failed
+                        await _emailService.SendEmailAsync(
+                            dispatcher.Email,
+                            $"New Trip Assignment - Trip #{trip.Id}",
+                            emailBody);
+                    }
                 }
 
                 return await GetTripByIdAsync(trip.Id);
