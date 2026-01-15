@@ -18,6 +18,7 @@ namespace ASTRASystem.Services
         private readonly INotificationService _notificationService;
         private readonly IFileStorageService _fileStorageService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IEmailService _emailService;
         private readonly ILogger<DeliveryService> _logger;
 
         public DeliveryService(
@@ -27,6 +28,7 @@ namespace ASTRASystem.Services
             INotificationService notificationService,
             IFileStorageService fileStorageService,
             UserManager<ApplicationUser> userManager,
+            IEmailService emailService,
             ILogger<DeliveryService> logger)
         {
             _context = context;
@@ -35,6 +37,7 @@ namespace ASTRASystem.Services
             _notificationService = notificationService;
             _fileStorageService = fileStorageService;
             _userManager = userManager;
+            _emailService = emailService;
             _logger = logger;
         }
 
@@ -306,6 +309,33 @@ namespace ASTRASystem.Services
                     "OrderDelivered",
                     $"Order #{order.Id} for {order.Store.Name} has been delivered");
 
+                // Notify distributor via email if order is fully paid
+                if (order.IsPaid && order.DistributorId.HasValue)
+                {
+                    var distributor = await _context.Distributors.FindAsync(order.DistributorId.Value);
+                    var dispatcher = await _userManager.FindByIdAsync(userId);
+                    
+                    if (distributor != null && !string.IsNullOrEmpty(distributor.Email))
+                    {
+                        await _emailService.SendEmailAsync(
+                            distributor.Email,
+                            $"Delivery Completed and Paid - Order #{order.Id}",
+                            $@"
+                            <h2>Delivery Completed and Paid</h2>
+                            <p>A delivery has been successfully completed and the payment has been received.</p>
+                            <ul>
+                                <li><strong>Order ID:</strong> #{order.Id}</li>
+                                <li><strong>Store:</strong> {order.Store.Name}</li>
+                                <li><strong>Dispatcher:</strong> {dispatcher?.FullName ?? "Unknown"}</li>
+                                <li><strong>Payment Amount:</strong> ₱{order.Total:N2}</li>
+                                <li><strong>Delivery Time:</strong> {order.UpdatedAt:MMM dd, yyyy h:mm tt}</li>
+                                <li><strong>Recipient:</strong> {request.RecipientName ?? "N/A"}</li>
+                            </ul>
+                            <p>Please log in to the application to view full details.</p>
+                            ");
+                    }
+                }
+
                 return ApiResponse<bool>.SuccessResponse(true, "Order marked as delivered successfully");
             }
             catch (Exception ex)
@@ -365,6 +395,33 @@ namespace ASTRASystem.Services
                     $"Delivery exception reported for order #{order.Id}");
 
                 var user = await _userManager.FindByIdAsync(userId);
+
+                // Send email to distributor if available
+                if (order.DistributorId.HasValue)
+                {
+                    var distributor = await _context.Distributors.FindAsync(order.DistributorId.Value);
+                    var store = await _context.Stores.FindAsync(order.StoreId);
+                    
+                    if (distributor != null && !string.IsNullOrEmpty(distributor.Email))
+                    {
+                        await _emailService.SendEmailAsync(
+                            distributor.Email,
+                            $"Delivery Exception Reported - Order #{order.Id}",
+                            $@"
+                            <h2>Delivery Exception Reported</h2>
+                            <p>A delivery exception has been reported by the dispatcher.</p>
+                            <ul>
+                                <li><strong>Order ID:</strong> #{order.Id}</li>
+                                <li><strong>Store:</strong> {store?.Name ?? "Unknown"}</li>
+                                <li><strong>Exception Type:</strong> {request.ExceptionType}</li>
+                                <li><strong>Description:</strong> {request.Description}</li>
+                                <li><strong>Reported By:</strong> {user?.FullName ?? "Unknown"}</li>
+                                <li><strong>Reported At:</strong> {DateTime.UtcNow:MMM dd, yyyy h:mm tt}</li>
+                            </ul>
+                            <p>The order has been marked as Returned. Please log in to the application to view full details and take appropriate action.</p>
+                            ");
+                    }
+                }
 
                 var exceptionDto = new DeliveryExceptionDto
                 {
