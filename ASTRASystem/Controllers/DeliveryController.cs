@@ -149,7 +149,7 @@ namespace ASTRASystem.Controllers
         }
 
         [HttpGet("exceptions")]
-        [Authorize(Roles = "Admin,DistributorAdmin")]
+        [Authorize(Roles = "Admin,DistributorAdmin,Agent")]
         public async Task<IActionResult> GetDeliveryExceptions([FromQuery] long? orderId = null)
         {
             var result = await _deliveryService.GetDeliveryExceptionsAsync(orderId);
