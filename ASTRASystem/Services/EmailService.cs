@@ -46,7 +46,7 @@ namespace ASTRASystem.Services
                 await client.ConnectAsync(
                     _configuration["Smtp:Host"] ?? "localhost",
                     int.Parse(_configuration["Smtp:Port"] ?? "587"),
-                    SecureSocketOptions.StartTls);
+                    SecureSocketOptions.Auto);
 
                 // Authenticate if credentials are provided
                 var username = _configuration["Smtp:UserName"];
@@ -65,6 +65,64 @@ namespace ASTRASystem.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending email to {Email}", toEmail);
+                // Don't throw - email failures shouldn't break the application flow
+            }
+        }
+
+        public async Task SendEmailAsync(string toEmail, string subject, string body, byte[] attachmentBytes, string attachmentFilename, bool isHtml = true)
+        {
+            try
+            {
+                var message = new MimeMessage();
+                message.From.Add(new MailboxAddress(
+                    _configuration["Smtp:FromName"] ?? "ASTRA System",
+                    _configuration["Smtp:FromAddress"] ?? "noreply@astra.local"));
+                message.To.Add(MailboxAddress.Parse(toEmail));
+                message.Subject = subject;
+
+                var bodyBuilder = new BodyBuilder();
+                if (isHtml)
+                {
+                    bodyBuilder.HtmlBody = body;
+                }
+                else
+                {
+                    bodyBuilder.TextBody = body;
+                }
+
+                // Add PDF attachment
+                if (attachmentBytes != null && attachmentBytes.Length > 0)
+                {
+                    bodyBuilder.Attachments.Add(attachmentFilename, attachmentBytes, new ContentType("application", "pdf"));
+                }
+
+                message.Body = bodyBuilder.ToMessageBody();
+
+                using var client = new SmtpClient();
+
+                // Connect to SMTP server
+                await client.ConnectAsync(
+                    _configuration["Smtp:Host"] ?? "localhost",
+                    int.Parse(_configuration["Smtp:Port"] ?? "587"),
+                    SecureSocketOptions.Auto);
+
+                // Authenticate if credentials are provided
+                var username = _configuration["Smtp:UserName"];
+                var password = _configuration["Smtp:Password"];
+
+                if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+                {
+                    await client.AuthenticateAsync(username, password);
+                }
+
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+
+                _logger.LogInformation("Email with attachment sent successfully to {Email}", toEmail);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending email with attachment to {Email}", toEmail);
                 // Don't throw - email failures shouldn't break the application flow
             }
         }

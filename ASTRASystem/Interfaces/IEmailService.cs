@@ -5,6 +5,7 @@ namespace ASTRASystem.Interfaces
     public interface IEmailService
     {
         Task SendEmailAsync(string toEmail, string subject, string body, bool isHtml = true);
+        Task SendEmailAsync(string toEmail, string subject, string body, byte[] attachmentBytes, string attachmentFilename, bool isHtml = true);
         Task SendConfirmationEmailAsync(ApplicationUser user, string confirmationLink);
         Task SendPasswordResetEmailAsync(ApplicationUser user, string resetLink);
         Task SendTwoFactorCodeAsync(ApplicationUser user, string code);
