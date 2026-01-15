@@ -21,6 +21,8 @@ namespace ASTRASystem.Models
 
         public string? ApprovalMessage { get; set; }
 
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
         [NotMapped]
         public string FullName
             => string.Join(" ", new[] { FirstName, MiddleName, LastName }
