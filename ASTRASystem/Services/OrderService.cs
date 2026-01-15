@@ -323,24 +323,57 @@ namespace ASTRASystem.Services
                 // Notify distributor admin via email if available
                 if (request.DistributorId.HasValue)
                 {
-                    var distributor = await _context.Distributors.FindAsync(request.DistributorId.Value);
-                    if (distributor != null && !string.IsNullOrEmpty(distributor.Email))
-                    {
+                    // Get all users with DistributorAdmin role and matching DistributorId
+                    var distributorAdmins = await _userManager.GetUsersInRoleAsync("DistributorAdmin");
+                    var relevantAdmins = distributorAdmins
+                        .Where(u => u.DistributorId == request.DistributorId.Value && !string.IsNullOrEmpty(u.Email))
+                        .ToList();
 
-                        await _emailService.SendEmailAsync(
-                            distributor.Email,
-                            $"New Order Created - #{order.Id}",
-                            $@"
-                            <h2>New Order Created</h2>
-                            <p>A new order has been created by {agent?.FullName ?? "an agent"}.</p>
-                            <ul>
-                                <li><strong>Order ID:</strong> #{order.Id}</li>
-                                <li><strong>Store:</strong> {store.Name}</li>
-                                <li><strong>Total Amount:</strong> ₱{order.Total:N2}</li>
-                                <li><strong>Date:</strong> {order.CreatedAt:MMM dd, yyyy h:mm tt}</li>
-                            </ul>
-                            <p>Please log in to the application to view full details.</p>
-                            ");
+                    if (relevantAdmins.Any())
+                    {
+                        foreach (var admin in relevantAdmins)
+                        {
+                            try
+                            {
+                                await _emailService.SendEmailAsync(
+                                    admin.Email,
+                                    $"New Order Created - #{order.Id}",
+                                    $@"
+                                    <html>
+                                    <body>
+                                        <h2>New Order Created</h2>
+                                        <p>Hello {admin.FirstName},</p>
+                                        <p>A new order has been created by {agent?.FullName ?? "an agent"}.</p>
+                                        <ul>
+                                            <li><strong>Order ID:</strong> #{order.Id}</li>
+                                            <li><strong>Store:</strong> {store.Name}</li>
+                                            <li><strong>Total Amount:</strong> ₱{order.Total:N2}</li>
+                                            <li><strong>Date:</strong> {order.CreatedAt:MMM dd, yyyy h:mm tt}</li>
+                                            <li><strong>Priority:</strong> {(order.Priority ? "High" : "Normal")}</li>
+                                        </ul>
+                                        <p>Please log in to the application to view full details and confirm the order.</p>
+                                        <br/>
+                                        <p>Thank you,<br/>ASTRA System Team</p>
+                                    </body>
+                                    </html>");
+
+                                _logger.LogInformation(
+                                    "Order creation email sent to DistributorAdmin {AdminEmail} for order #{OrderId}",
+                                    admin.Email, order.Id);
+                            }
+                            catch (Exception emailEx)
+                            {
+                                _logger.LogError(emailEx,
+                                    "Failed to send order creation email to DistributorAdmin {AdminEmail} for order #{OrderId}",
+                                    admin.Email, order.Id);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "No DistributorAdmin users with email found for DistributorId {DistributorId} for order #{OrderId}",
+                            request.DistributorId.Value, order.Id);
                     }
                 }
 
