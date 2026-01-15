@@ -113,6 +113,14 @@ namespace ASTRASystem.Services
                     {
                         return ApiResponse<AuthResponseDto>.ErrorResponse("Account locked due to multiple failed attempts");
                     }
+                    if (result.IsNotAllowed)
+                    {
+                        if (!user.EmailConfirmed)
+                        {
+                            return ApiResponse<AuthResponseDto>.ErrorResponse("Please confirm your email address before logging in.");
+                        }
+                        return ApiResponse<AuthResponseDto>.ErrorResponse("Login not allowed.");
+                    }
                     return ApiResponse<AuthResponseDto>.ErrorResponse("Invalid credentials");
                 }
 
