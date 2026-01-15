@@ -6,6 +6,7 @@ using ASTRASystem.Models;
 using AutoMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace ASTRASystem.Services
 {
@@ -17,6 +18,8 @@ namespace ASTRASystem.Services
         private readonly IMapper _mapper;
         private readonly IAuditLogService _auditLogService;
         private readonly ILogger<UserService> _logger;
+        private readonly IConfiguration _configuration;
+        private readonly IEmailService _emailService;
 
         public UserService(
             UserManager<ApplicationUser> userManager,
@@ -24,7 +27,9 @@ namespace ASTRASystem.Services
             ApplicationDbContext context,
             IMapper mapper,
             IAuditLogService auditLogService,
-            ILogger<UserService> logger)
+            ILogger<UserService> logger,
+            IConfiguration configuration,
+            IEmailService emailService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -32,6 +37,8 @@ namespace ASTRASystem.Services
             _mapper = mapper;
             _auditLogService = auditLogService;
             _logger = logger;
+            _configuration = configuration;
+            _emailService = emailService;
         }
 
         public async Task<ApiResponse<UserDto>> GetUserByIdAsync(string userId)
@@ -253,6 +260,11 @@ namespace ASTRASystem.Services
                 user.IsApproved = request.Approve;
                 user.ApprovalMessage = request.Message;
 
+                if (request.Approve)
+                {
+                    user.EmailConfirmed = true;
+                }
+
                 var result = await _userManager.UpdateAsync(user);
                 if (!result.Succeeded)
                 {
@@ -262,7 +274,7 @@ namespace ASTRASystem.Services
                 await _auditLogService.LogActionAsync(user.Id, $"User {(request.Approve ? "approved" : "rejected")}", request);
 
                 // Send email notification
-                // await _emailService.SendAccountApprovalEmailAsync(user, request.Approve, request.Message);
+                await _emailService.SendAccountApprovalEmailAsync(user, request.Approve, request.Message);
 
                 return ApiResponse<bool>.SuccessResponse(true, $"User {(request.Approve ? "approved" : "rejected")} successfully");
             }
@@ -270,6 +282,60 @@ namespace ASTRASystem.Services
             {
                 _logger.LogError(ex, "Error approving user");
                 return ApiResponse<bool>.ErrorResponse("An error occurred");
+            }
+        }
+
+        public async Task<ApiResponse<UserDto>> CreateUserAsync(ASTRASystem.DTO.Auth.RegisterRequestDto request)
+        {
+            try
+            {
+                // Check if email already exists
+                var existingUser = await _userManager.FindByEmailAsync(request.Email);
+                if (existingUser != null)
+                {
+                    return ApiResponse<UserDto>.ErrorResponse(
+                        "Email is already registered",
+                        new List<string> { "A user with this email already exists" });
+                }
+
+                // Map DTO to ApplicationUser
+                var user = _mapper.Map<ApplicationUser>(request);
+                user.UserName = request.Email;
+                user.IsApproved = true; // Admin created users are auto-approved
+                user.EmailConfirmed = false; // Email confirmation required
+
+                // Create user
+                var result = await _userManager.CreateAsync(user, request.Password);
+                if (!result.Succeeded)
+                {
+                    return ApiResponse<UserDto>.ErrorResponse(
+                        "User creation failed",
+                        result.Errors.Select(e => e.Description).ToList());
+                }
+
+                // Assign role
+                await _userManager.AddToRoleAsync(user, request.Role);
+
+                // Generate email confirmation token
+                var confirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                
+                var clientUrl = _configuration["ClientUrl"] ?? "http://localhost:5173";
+                var confirmationLink = $"{clientUrl}/confirm-email?token={Uri.EscapeDataString(confirmationToken)}&userId={user.Id}";
+
+                // Send confirmation email
+                await _emailService.SendConfirmationEmailAsync(user, confirmationLink);
+
+                await _auditLogService.LogActionAsync(user.Id, "User created by admin", new { Email = user.Email, Role = request.Role });
+                
+                var userDto = _mapper.Map<UserDto>(user);
+                userDto.Roles = new List<string> { request.Role };
+
+                return ApiResponse<UserDto>.SuccessResponse(userDto, "User created successfully. Confirmation email sent.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating user {Email}", request.Email);
+                return ApiResponse<UserDto>.ErrorResponse("An error occurred during user creation");
             }
         }
 

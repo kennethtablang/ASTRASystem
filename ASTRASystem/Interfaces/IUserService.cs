@@ -16,5 +16,6 @@ namespace ASTRASystem.Interfaces
         Task<ApiResponse<List<string>>> GetAllRolesAsync();
         Task<ApiResponse<List<UserListItemDto>>> GetUsersByRoleAsync(string role, long? distributorId = null);
         Task<ApiResponse<List<UserListItemDto>>> GetUnapprovedUsersAsync();
+        Task<ApiResponse<UserDto>> CreateUserAsync(ASTRASystem.DTO.Auth.RegisterRequestDto request);
     }
 }
