@@ -18,7 +18,7 @@ namespace ASTRASystem.Models
         public DateTime? DepartureAt { get; set; }
 
         [MaxLength(200)]
-        public string Vehicle { get; set; }
+        public string? Vehicle { get; set; }
 
         public DateTime? EstimatedReturn { get; set; }
 
