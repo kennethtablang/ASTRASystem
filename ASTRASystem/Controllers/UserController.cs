@@ -37,6 +37,18 @@ namespace ASTRASystem.Controllers
             return Ok(result);
         }
 
+        [HttpPost]
+        [Authorize(Roles = "Admin,DistributorAdmin")]
+        public async Task<IActionResult> CreateUser([FromBody] ASTRASystem.DTO.Auth.RegisterRequestDto request)
+        {
+            var result = await _userService.CreateUserAsync(request);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
         [HttpGet("{id}")]
         [Authorize(Roles = "Admin,DistributorAdmin")]
         public async Task<IActionResult> GetUserById(string id)
