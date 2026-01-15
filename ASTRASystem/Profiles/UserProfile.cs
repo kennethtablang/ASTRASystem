@@ -18,8 +18,7 @@ namespace ASTRASystem.Profiles
             CreateMap<ApplicationUser, UserListItemDto>()
                 .ForMember(dest => dest.Roles, opt => opt.Ignore())
                 .ForMember(dest => dest.DistributorName, opt => opt.Ignore())
-                .ForMember(dest => dest.WarehouseName, opt => opt.Ignore())
-                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore()); 
+                .ForMember(dest => dest.WarehouseName, opt => opt.Ignore()); 
 
             // UpdateUserProfileDto -> ApplicationUser
             CreateMap<UpdateUserProfileDto, ApplicationUser>()
